@@ -12,9 +12,12 @@ def run_migrations():
     """Run all migration files in order"""
     load_dotenv()
     
-    database_url = os.getenv('NEON_DATABASE_URL')
+    # Try multiple environment variable names for flexibility
+    database_url = os.getenv('DATABASE_URL') or os.getenv('NEON_DATABASE_URL')
     if not database_url:
-        print("❌ NEON_DATABASE_URL not found in environment variables")
+        print("❌ DATABASE_URL not found in environment variables")
+        print("💡 Make sure to set DATABASE_URL in your .env file")
+        print("   Example: DATABASE_URL=postgresql://user:pass@host:5432/dbname")
         return False
     
     migrations_dir = 'property-search-api/migrations'

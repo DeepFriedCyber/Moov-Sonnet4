@@ -12,11 +12,13 @@ def test_neon_connection():
     # Load environment variables
     load_dotenv()
     
-    # Get database URL from environment
-    database_url = os.getenv('NEON_DATABASE_URL')
+    # Get database URL from environment (try multiple variable names)
+    database_url = os.getenv('DATABASE_URL') or os.getenv('NEON_DATABASE_URL')
     
     if not database_url:
-        print("❌ NEON_DATABASE_URL not found in environment variables")
+        print("❌ DATABASE_URL not found in environment variables")
+        print("💡 Make sure to set DATABASE_URL in your .env file")
+        print("   Example: DATABASE_URL=postgresql://user:pass@host:5432/dbname")
         return False
     
     print(f"🔍 Testing connection to Neon database...")
