@@ -1,0 +1,113 @@
+repos:
+  # JavaScript/TypeScript formatting and linting
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v3.0.3
+    hooks:
+      - id: prettier
+        files: \.(js|ts|tsx|json|css|md)$
+        exclude: |
+          (?x)^(
+            property-search-frontend/\.next/.*|
+            property-search-api/dist/.*|
+            node_modules/.*|
+            .*\.min\.(js|css)$
+          )$
+
+  # Python formatting and linting
+  - repo: https://github.com/psf/black
+    rev: 23.9.1
+    hooks:
+      - id: black
+        files: ^property-embedding-service/.*\.py$
+
+  - repo: https://github.com/pycqa/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
+        files: ^property-embedding-service/.*\.py$
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 6.1.0
+    hooks:
+      - id: flake8
+        files: ^property-embedding-service/.*\.py$
+        args: [--max-line-length=88, --extend-ignore=E203, W503]
+
+  # General hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=1000"]
+      - id: check-case-conflict
+      - id: mixed-line-ending
+
+  # TypeScript type checking
+  - repo: local
+    hooks:
+      - id: tsc-frontend
+        name: TypeScript Frontend Check
+        entry: bash -c 'cd property-search-frontend && npx tsc --noEmit'
+        language: system
+        files: ^property-search-frontend/.*\.(ts|tsx)$
+        pass_filenames: false
+
+      - id: tsc-api
+        name: TypeScript API Check
+        entry: bash -c 'cd property-search-api && npx tsc --noEmit'
+        language: system
+        files: ^property-search-api/.*\.ts$
+        pass_filenames: false
+
+      # ESLint for Frontend
+      - id: eslint-frontend
+        name: ESLint Frontend
+        entry: bash -c 'cd property-search-frontend && npx eslint --fix'
+        language: system
+        files: ^property-search-frontend/.*\.(js|ts|tsx)$
+
+      # ESLint for API
+      - id: eslint-api
+        name: ESLint API
+        entry: bash -c 'cd property-search-api && npx eslint --fix'
+        language: system
+        files: ^property-search-api/.*\.(js|ts)$
+
+      # Run tests on changed files
+      - id: test-frontend
+        name: Frontend Tests
+        entry: bash -c 'cd property-search-frontend && npm test -- --watchAll=false --passWithNoTests'
+        language: system
+        files: ^property-search-frontend/.*\.(js|ts|tsx)$
+        pass_filenames: false
+
+      - id: test-api
+        name: API Tests
+        entry: bash -c 'cd property-search-api && npm test -- --passWithNoTests'
+        language: system
+        files: ^property-search-api/.*\.(js|ts)$
+        pass_filenames: false
+
+      - id: test-ai
+        name: AI Service Tests
+        entry: bash -c 'cd property-embedding-service && python -m pytest --tb=short'
+        language: system
+        files: ^property-embedding-service/.*\.py$
+        pass_filenames: false
+
+ci:
+  autofix_commit_msg: |
+    [pre-commit.ci] auto fixes from pre-commit hooks
+
+    for more information, see https://pre-commit.ci
+  autofix_prs: true
+  autoupdate_branch: ""
+  autoupdate_commit_msg: "[pre-commit.ci] pre-commit autoupdate"
+  autoupdate_schedule: weekly
+  skip: []
+  submodules: false
