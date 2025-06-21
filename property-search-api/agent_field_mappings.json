@@ -1,0 +1,62 @@
+{
+  "rightmove": {
+    "address": ["address", "property_address", "full_address"],
+    "price": ["price", "asking_price"],
+    "bedrooms": ["bedrooms", "beds"],
+    "bathrooms": ["bathrooms", "baths"],
+    "property_type": ["property_type", "type"],
+    "square_feet": ["floor_area", "internal_area"],
+    "description": ["description", "summary"],
+    "agent_name": ["agent", "branch"],
+    "postcode": ["postcode"],
+    "city": ["town", "area"]
+  },
+  "zoopla": {
+    "address": ["address", "street_address"],
+    "price": ["price", "current_price"],
+    "bedrooms": ["num_bedrooms", "bedrooms"],
+    "bathrooms": ["num_bathrooms", "bathrooms"],
+    "property_type": ["listing_condition", "property_type"],
+    "square_feet": ["floor_area"],
+    "description": ["details", "description"],
+    "agent_name": ["agent_name"],
+    "postcode": ["post_code"],
+    "city": ["county", "town"]
+  },
+  "onthemarket": {
+    "address": ["address", "property_address"],
+    "price": ["price", "guide_price"],
+    "bedrooms": ["bedrooms", "bed_count"],
+    "bathrooms": ["bathrooms", "bath_count"],
+    "property_type": ["property_type"],
+    "square_feet": ["sq_ft", "square_footage"],
+    "description": ["description"],
+    "agent_name": ["agent"],
+    "postcode": ["postcode"],
+    "city": ["location", "area"]
+  },
+  "spareroom": {
+    "address": ["address", "location"],
+    "price": ["rent_per_month", "monthly_rent", "price"],
+    "bedrooms": ["bedrooms", "rooms"],
+    "bathrooms": ["bathrooms"],
+    "property_type": ["property_type", "accommodation_type"],
+    "description": ["description", "details"],
+    "agent_name": ["advertiser_name", "contact_name"],
+    "city": ["area", "location"]
+  },
+  "local_agent_example": {
+    "address": ["Property Address", "Street Address", "Full Address"],
+    "price": ["Asking Price", "Sale Price", "Price £"],
+    "bedrooms": ["No. Bedrooms", "Bed Count", "Beds"],
+    "bathrooms": ["No. Bathrooms", "Bath Count", "Baths"],
+    "property_type": ["Property Type", "Type of Property"],
+    "square_feet": ["Floor Area (sq ft)", "Size", "Square Footage"],
+    "description": ["Property Description", "Details", "Summary"],
+    "agent_name": ["Agent Name", "Contact", "Listed By"],
+    "agent_phone": ["Phone Number", "Contact Number", "Tel"],
+    "agent_email": ["Email Address", "Contact Email"],
+    "postcode": ["Post Code", "Postal Code"],
+    "city": ["Town/City", "Location", "Area"]
+  }
+}

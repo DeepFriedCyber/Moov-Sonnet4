@@ -1,0 +1,25 @@
+{
+  "name": "moov-property-search",
+  "version": "1.0.0",
+  "description": "Property Search Platform with Flexible Import System",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:frontend\" \"npm run dev:embedding\"",
+    "dev:api": "cd property-search-api && npm run dev",
+    "dev:frontend": "cd property-search-frontend && npm run dev",
+    "dev:embedding": "cd property-embedding-service && python src/main.py",
+    "install:all": "npm install && cd property-search-api && npm install && cd ../property-search-frontend && npm install && cd ../property-embedding-service && pip install -r requirements.txt",
+    "build:all": "cd property-search-api && npm run build && cd ../property-search-frontend && npm run build",
+    "test:import": "cd property-search-api && python test_flexible_import.py",
+    "clean": "rmdir /s /q node_modules & cd property-search-api && rmdir /s /q node_modules & cd ../property-search-frontend && rmdir /s /q node_modules",
+    "ports": "netstat -ano | findstr \":3000 :3001 :8000\"",
+    "kill-ports": "for /f \"tokens=5\" %a in ('netstat -ano ^| findstr :3000') do taskkill /f /pid %a & for /f \"tokens=5\" %b in ('netstat -ano ^| findstr :3001') do taskkill /f /pid %b & for /f \"tokens=5\" %c in ('netstat -ano ^| findstr :8000') do taskkill /f /pid %c"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "workspaces": [
+    "property-search-api",
+    "property-search-frontend"
+  ]
+}

@@ -1,0 +1,121 @@
+{
+    "folders": [
+        {
+            "name": "🏠 Root",
+            "path": "."
+        },
+        {
+            "name": "🚀 API",
+            "path": "./property-search-api"
+        },
+        {
+            "name": "🌐 Frontend",
+            "path": "./property-search-frontend"
+        },
+        {
+            "name": "🧠 Embedding Service",
+            "path": "./property-embedding-service"
+        }
+    ],
+    "settings": {
+        "python.defaultInterpreterPath": "C:\\Users\\aps33\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+        "terminal.integrated.defaultProfile.windows": "PowerShell",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.fixAll.eslint": "explicit"
+        },
+        "files.exclude": {
+            "**/node_modules": true,
+            "**/.next": true,
+            "**/__pycache__": true,
+            "**/dist": true,
+            "**/build": true
+        },
+        "search.exclude": {
+            "**/node_modules": true,
+            "**/.next": true,
+            "**/__pycache__": true,
+            "**/dist": true,
+            "**/build": true
+        },
+        "explorer.fileNesting.enabled": true,
+        "explorer.fileNesting.patterns": {
+            "package.json": "package-lock.json, pnpm-lock.yaml, yarn.lock, .env.example",
+            "*.ts": "${capture}.js, ${capture}.d.ts, ${capture}.js.map",
+            "docker-compose.yml": "docker-compose.*.yml, Dockerfile*",
+            "README.md": "*.md"
+        }
+    },
+    "extensions": {
+        "recommendations": [
+            "ms-vscode.vscode-typescript-next",
+            "ms-python.python",
+            "ms-python.flake8",
+            "bradlc.vscode-tailwindcss",
+            "esbenp.prettier-vscode",
+            "ms-vscode.powershell",
+            "ms-vscode-remote.remote-containers",
+            "ms-vscode.vscode-json"
+        ]
+    },
+    "tasks": {
+        "version": "2.0.0",
+        "tasks": [
+            {
+                "label": "🚀 Start All Services",
+                "type": "shell",
+                "command": "npm run dev",
+                "group": {
+                    "kind": "build",
+                    "isDefault": true
+                },
+                "presentation": {
+                    "echo": true,
+                    "reveal": "always",
+                    "focus": false,
+                    "panel": "dedicated"
+                },
+                "problemMatcher": []
+            },
+            {
+                "label": "🛑 Stop All Services",
+                "type": "shell",
+                "command": ".\\dev-simple.ps1 stop",
+                "group": "build",
+                "presentation": {
+                    "echo": true,
+                    "reveal": "always",
+                    "focus": false,
+                    "panel": "shared"
+                }
+            },
+            {
+                "label": "📊 Check Server Status",
+                "type": "shell",
+                "command": ".\\dev-simple.ps1 status",
+                "group": "build",
+                "presentation": {
+                    "echo": true,
+                    "reveal": "always",
+                    "focus": true,
+                    "panel": "shared"
+                }
+            },
+            {
+                "label": "🧪 Test Flexible Import",
+                "type": "shell",
+                "command": "python test_flexible_import.py",
+                "options": {
+                    "cwd": "${workspaceFolder}/property-search-api"
+                },
+                "group": "test",
+                "presentation": {
+                    "echo": true,
+                    "reveal": "always",
+                    "focus": true,
+                    "panel": "dedicated"
+                }
+            }
+        ]
+    }
+}
