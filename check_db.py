@@ -27,6 +27,13 @@ def check_database_status():
         # Get database info
         cursor.execute("SELECT current_database(), current_user;")
         db_info = cursor.fetchone()
+        
+        if db_info is None:
+            print("❌ Failed to get database information")
+            cursor.close()
+            conn.close()
+            return False
+            
         print(f"📊 Database: {db_info[0]}")
         print(f"👤 User: {db_info[1]}")
         
@@ -49,11 +56,18 @@ def check_database_status():
         for table in tables:
             table_name = table[0]
             try:
-                cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
-                count = cursor.fetchone()[0]
-                print(f'  • {table_name}: {count:,} rows')
+                # Use quoted identifiers to handle case-sensitive table names
+                cursor.execute(f'SELECT COUNT(*) FROM "{table_name}"')
+                count_result = cursor.fetchone()
+                if count_result:
+                    count = count_result[0]
+                    print(f'  • {table_name}: {count:,} rows')
+                else:
+                    print(f'  • {table_name}: No count result returned')
             except Exception as e:
-                print(f'  • {table_name}: Error counting rows ({e})')
+                # Start a new transaction if the previous one failed
+                conn.rollback()
+                print(f'  • {table_name}: Error counting rows ({str(e).split(chr(10))[0]})')
         
         print(f'\n✅ Database has {len(tables)} tables')
         
@@ -76,11 +90,16 @@ def check_database_status():
         result = cursor.fetchone()
         if result and result[0] == 1:
             print('  ✅ SELECT operations working')
+        else:
+            print('  ❌ SELECT operations failed')
         
         # Test timestamp
         cursor.execute("SELECT NOW()")
         timestamp = cursor.fetchone()
-        print(f'  ✅ Server time: {timestamp[0]}')
+        if timestamp:
+            print(f'  ✅ Server time: {timestamp[0]}')
+        else:
+            print('  ❌ Could not get server timestamp')
         
         cursor.close()
         conn.close()

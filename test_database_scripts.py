@@ -83,6 +83,11 @@ def test_database_scripts():
         # Test if script can be imported (syntax check)
         try:
             spec = importlib.util.spec_from_file_location("test_module", script)
+            if spec is None:
+                print(f"  ❌ {script} - Could not create module spec")
+                results[script] = False
+                continue
+            
             module = importlib.util.module_from_spec(spec)
             # Don't execute, just check syntax
             with open(script, 'r', encoding='utf-8') as f:

@@ -63,6 +63,23 @@ def run_migrations():
                 conn.commit()
                 print(f"✅ {filename} completed successfully")
                 
+            except psycopg2.Error as e:
+                # Handle specific PostgreSQL errors more gracefully
+                error_msg = str(e).strip()
+                
+                # Check for "already exists" errors which are usually safe to ignore
+                if any(phrase in error_msg.lower() for phrase in [
+                    'already exists', 
+                    'duplicate key value violates unique constraint',
+                    'constraint already exists'
+                ]):
+                    print(f"⚠️ {filename}: {error_msg} (continuing...)")
+                    conn.rollback()
+                    continue
+                else:
+                    print(f"❌ Error in {filename}: {error_msg}")
+                    conn.rollback()
+                    return False
             except Exception as e:
                 print(f"❌ Error in {filename}: {e}")
                 conn.rollback()
