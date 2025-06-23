@@ -1,5 +1,6 @@
 import { Pool } from 'pg';
-import { logger } from '../utils/logger';
+import { logger } from '../lib/logger';
+import { env } from './env';
 
 let pool: Pool | null = null;
 
@@ -8,16 +9,10 @@ export const connectDatabase = async (): Promise<Pool> => {
         return pool;
     }
 
-    const databaseUrl = process.env.DATABASE_URL;
-
-    if (!databaseUrl) {
-        throw new Error('DATABASE_URL environment variable is not set');
-    }
-
     try {
         pool = new Pool({
-            connectionString: databaseUrl,
-            ssl: process.env.NODE_ENV === 'production' ? {
+            connectionString: env.DATABASE_URL,
+            ssl: env.IS_PRODUCTION ? {
                 rejectUnauthorized: false
             } : false,
             max: 20,

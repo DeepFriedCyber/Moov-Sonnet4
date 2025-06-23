@@ -6,13 +6,18 @@ export interface Property {
   price: number;
   bedrooms: number;
   bathrooms: number;
-  propertyType: 'House' | 'Flat' | 'Bungalow' | 'Maisonette' | 'Studio';
+  area: number; // Square footage/meters
+  propertyType: 'house' | 'flat' | 'bungalow' | 'maisonette' | 'studio';
+  listingType: 'sale' | 'rent';
   location: {
     address: string;
+    city: string;
     area: string;
     postcode: string;
-    lat: number;
-    lng: number;
+    coordinates: {
+      lat: number;
+      lng: number;
+    };
   };
   images: string[];
   features: string[];
@@ -42,11 +47,28 @@ export interface Agent extends User {
   subscriptionStatus: 'active' | 'inactive' | 'cancelled';
 }
 
-// Search types
+// Search types  
 export interface SearchQuery {
-  text: string;
-  location: string;
-  filters: PropertyFilters;
+  query: string;
+  filters?: {
+    minPrice?: number;
+    maxPrice?: number;
+    minBedrooms?: number;
+    maxBedrooms?: number;
+    propertyType?: Property['propertyType'][];
+    listingType?: Property['listingType'];
+    location?: string;
+    radius?: number; // in miles
+    features?: string[];
+  };
+  sort?: {
+    field: 'price' | 'bedrooms' | 'area' | 'createdAt';
+    order: 'asc' | 'desc';
+  };
+  pagination?: {
+    page: number;
+    limit: number;
+  };
 }
 
 export interface PropertyFilters {
@@ -98,10 +120,19 @@ export interface ChatContext {
 
 // API Response types
 export interface ApiResponse<T = any> {
-  success: boolean;
+  status: 'success' | 'error';
   data?: T;
-  error?: string;
-  message?: string;
+  error?: {
+    message: string;
+    code?: string;
+    details?: any;
+  };
+  meta?: {
+    page?: number;
+    totalPages?: number;
+    totalItems?: number;
+    timestamp?: string;
+  };
 }
 
 export interface PaginatedResponse<T> {
@@ -112,4 +143,24 @@ export interface PaginatedResponse<T> {
     total: number;
     totalPages: number;
   };
+}
+
+// Error types
+export interface AppError {
+  statusCode: number;
+  message: string;
+  isOperational: boolean;
+  stack?: string;
+}
+
+// Health check types
+export interface HealthStatus {
+  status: 'healthy' | 'unhealthy';
+  timestamp: string;
+  services: {
+    database: 'connected' | 'disconnected';
+    redis: 'connected' | 'disconnected';
+    embeddingService: 'connected' | 'disconnected';
+  };
+  version: string;
 }

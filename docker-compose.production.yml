@@ -1,0 +1,196 @@
+version: '3.8'
+
+services:
+  # PostgreSQL with pgvector
+  postgres:
+    image: pgvector/pgvector:pg15
+    container_name: moov-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_EXTENSIONS: vector
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./property-search-api/migrations:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Redis Cluster for High Availability
+  redis-master:
+    image: redis:7-alpine
+    container_name: moov-redis-master
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_master_data:/data
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  redis-slave:
+    image: redis:7-alpine
+    container_name: moov-redis-slave
+    command: redis-server --slaveof redis-master 6379
+    volumes:
+      - redis_slave_data:/data
+    depends_on:
+      - redis-master
+    restart: unless-stopped
+
+  # Primary Embedding Service
+  embedding-primary:
+    build:
+      context: ./property-embedding-service
+      dockerfile: Dockerfile
+    container_name: moov-embedding-primary
+    environment:
+      MODEL_NAME: sentence-transformers/all-MiniLM-L6-v2
+      CACHE_DIR: /app/model_cache
+      API_HOST: 0.0.0.0
+      API_PORT: 8001
+      REDIS_HOST: redis-master
+      REDIS_PORT: 6379
+      WORKERS: 4
+    volumes:
+      - model_cache:/app/model_cache
+    ports:
+      - "8001:8001"
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Secondary Embedding Service (Failover)
+  embedding-secondary:
+    build:
+      context: ./property-embedding-service
+      dockerfile: Dockerfile
+    container_name: moov-embedding-secondary
+    environment:
+      MODEL_NAME: sentence-transformers/all-mpnet-base-v2
+      CACHE_DIR: /app/model_cache
+      API_HOST: 0.0.0.0
+      API_PORT: 8002
+      REDIS_HOST: redis-master
+      REDIS_PORT: 6379
+      WORKERS: 2
+    volumes:
+      - model_cache_secondary:/app/model_cache
+    ports:
+      - "8002:8002"
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+        reservations:
+          memory: 2G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Load Balancer for Embedding Services
+  nginx:
+    image: nginx:alpine
+    container_name: moov-nginx
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8000:80"
+    depends_on:
+      - embedding-primary
+      - embedding-secondary
+    restart: unless-stopped
+
+  # Main API Service
+  api:
+    build:
+      context: ./property-search-api
+      dockerfile: Dockerfile
+    container_name: moov-api
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis-master:6379
+      EMBEDDING_SERVICE_URL: http://nginx:80
+      EMBEDDING_SERVICE_BACKUP_URL: http://embedding-secondary:8002
+      JWT_SECRET: ${JWT_SECRET}
+      FRONTEND_URL: ${FRONTEND_URL}
+    ports:
+      - "3001:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis-master:
+        condition: service_started
+      nginx:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Frontend Service
+  frontend:
+    build:
+      context: ./property-search-frontend
+      dockerfile: Dockerfile
+    container_name: moov-frontend
+    environment:
+      NEXT_PUBLIC_API_URL: ${API_URL}
+      NEXT_PUBLIC_MAPTILER_KEY: ${MAPTILER_API_KEY}
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Monitoring Stack
+  prometheus:
+    image: prom/prometheus
+    container_name: moov-prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana
+    container_name: moov-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3002:3000"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_master_data:
+  redis_slave_data:
+  model_cache:
+  model_cache_secondary:
+  prometheus_data:
+  grafana_data:
