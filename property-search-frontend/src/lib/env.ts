@@ -1,31 +1,34 @@
+// REFACTORED frontend environment config
 import { z } from 'zod';
 
-const envSchema = z.object({
+// Schema definition
+const FrontendEnvironmentSchema = z.object({
     NEXT_PUBLIC_API_URL: z.string().url(),
     NEXT_PUBLIC_EMBEDDING_SERVICE_URL: z.string().url(),
 });
 
-// Parse environment variables with test fallbacks
-let env: any;
-try {
-    env = envSchema.parse({
-        NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
-        NEXT_PUBLIC_EMBEDDING_SERVICE_URL: process.env.NEXT_PUBLIC_EMBEDDING_SERVICE_URL,
-    });
-} catch (error) {
-    // In test or development without env vars, provide defaults
-    env = {
-        NEXT_PUBLIC_API_URL: 'http://localhost:3001',
-        NEXT_PUBLIC_EMBEDDING_SERVICE_URL: 'http://localhost:8001',
-    };
-}
+// Export types
+export type FrontendEnvironment = z.infer<typeof FrontendEnvironmentSchema>;
 
-export { env };
-
-export type Env = typeof env;
-export type FrontendEnvironment = typeof env;
-
-// Function to parse frontend environment variables for testing
-export const parseFrontendEnv = (envVars: Record<string, string | undefined>): FrontendEnvironment => {
-    return envSchema.parse(envVars);
+// Parse function - same public API
+export const parseFrontendEnv = (env: Record<string, unknown>): FrontendEnvironment => {
+    return FrontendEnvironmentSchema.parse(env);
 };
+
+// For actual usage in the app
+let cachedEnv: FrontendEnvironment | undefined;
+
+export const getEnv = (): FrontendEnvironment => {
+    if (!cachedEnv) {
+        cachedEnv = parseFrontendEnv({
+            NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+            NEXT_PUBLIC_EMBEDDING_SERVICE_URL: process.env.NEXT_PUBLIC_EMBEDDING_SERVICE_URL,
+        });
+    }
+    return cachedEnv;
+};
+
+// Usage throughout the app:
+// import { getEnv } from '@/lib/env';
+// const env = getEnv();
+// fetch(`${env.NEXT_PUBLIC_API_URL}/properties`);

@@ -1,5 +1,5 @@
 // Vitest setup file for frontend
-import { vi } from 'vitest';
+import { vi, afterEach } from 'vitest';
 
 // Mock Next.js router
 vi.mock('next/router', () => ({

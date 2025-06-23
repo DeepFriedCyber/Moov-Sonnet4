@@ -6,8 +6,8 @@ export default defineConfig({
         globals: true,
         environment: 'node',
         setupFiles: ['./tests/vitest.setup.ts'],
-        include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts}'],
-        exclude: ['node_modules', 'dist', '**/*.d.ts'],
+        include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts}'],
+        exclude: ['node_modules', 'dist', 'tests', '**/*.d.ts'],
         coverage: {
             provider: 'v8',
             reporter: ['text', 'json', 'html'],
@@ -19,6 +19,12 @@ export default defineConfig({
                 '**/*.config.{js,ts}',
                 '**/types/',
             ],
+            include: ['src/**/*.ts'],
+            all: true,
+            lines: 100,
+            functions: 100,
+            branches: 100,
+            statements: 100,
         },
         // Increase timeout for async operations
         testTimeout: 30000,

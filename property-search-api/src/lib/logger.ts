@@ -1,5 +1,5 @@
 import * as winston from 'winston';
-import { env } from '../config/env';
+import { getEnv } from '../config/env';
 
 const logLevels = {
     error: 0,
@@ -46,12 +46,12 @@ const productionFormat = winston.format.combine(
 
 const transports: winston.transport[] = [
     new winston.transports.Console({
-        format: env.NODE_ENV === 'development' ? developmentFormat : productionFormat,
+        format: getEnv().NODE_ENV === 'development' ? developmentFormat : productionFormat,
     }),
 ];
 
 // Add file transports for production
-if (env.NODE_ENV === 'production') {
+if (getEnv().NODE_ENV === 'production') {
     transports.push(
         new winston.transports.File({
             filename: 'logs/error.log',
