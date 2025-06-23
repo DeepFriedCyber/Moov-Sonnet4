@@ -10,10 +10,16 @@ const envSchema = z.object({
     PORT: z.string().default('3001').transform(Number),
 
     // Database
-    DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+    DATABASE_URL: z.string().min(1, 'DATABASE_URL is required').refine(
+        (url) => url.startsWith('postgresql://') || url.startsWith('postgres://'),
+        'DATABASE_URL must be a valid PostgreSQL connection string'
+    ),
 
     // Redis
-    REDIS_URL: z.string().default('redis://localhost:6379'),
+    REDIS_URL: z.string().default('redis://localhost:6379').refine(
+        (url) => url.startsWith('redis://') || url.startsWith('rediss://'),
+        'REDIS_URL must be a valid Redis connection string'
+    ),
 
     // Services
     EMBEDDING_SERVICE_URL: z.string().url().default('http://localhost:8001'),
@@ -51,8 +57,8 @@ const envSchema = z.object({
     CORS_ORIGIN: z.string().default('*'),
 });
 
-// Parse and validate environment variables
-const parsedEnv = envSchema.parse({
+// Function to get current environment variables
+const getCurrentEnvVars = () => ({
     NODE_ENV: process.env.NODE_ENV,
     PORT: process.env.PORT,
     DATABASE_URL: process.env.DATABASE_URL || process.env.NEON_DATABASE_URL,
@@ -78,6 +84,30 @@ const parsedEnv = envSchema.parse({
     CORS_ORIGIN: process.env.CORS_ORIGIN,
 });
 
+// Parse and validate environment variables (only in non-test environment)
+let parsedEnv: any;
+try {
+    parsedEnv = envSchema.parse(getCurrentEnvVars());
+} catch (error) {
+    if (process.env.NODE_ENV !== 'test') {
+        throw error;
+    }
+    // In test environment, provide minimal defaults
+    parsedEnv = {
+        NODE_ENV: 'test',
+        PORT: 3001,
+        DATABASE_URL: 'postgresql://test:test@localhost:5432/test_db',
+        JWT_SECRET: 'test-jwt-secret-12345678901234567890',
+        FRONTEND_URL: 'http://localhost:3000',
+        EMBEDDING_SERVICE_URL: 'http://localhost:8001',
+        JWT_EXPIRES_IN: '7d',
+        REDIS_URL: 'redis://localhost:6379',
+        SMTP_HOST: 'smtp.gmail.com',
+        SMTP_PORT: 587,
+        CORS_ORIGIN: '*',
+    };
+}
+
 // Environment configuration with computed flags
 export const env = {
     ...parsedEnv,
@@ -89,6 +119,19 @@ export const env = {
 
 // Type-safe environment variables
 export type Env = typeof env;
+export type ApiEnvironment = typeof env;
+
+// Function to parse environment variables for testing
+export const parseEnv = (): ApiEnvironment => {
+    const result = envSchema.parse(getCurrentEnvVars());
+
+    return {
+        ...result,
+        IS_DEVELOPMENT: result.NODE_ENV === 'development',
+        IS_PRODUCTION: result.NODE_ENV === 'production',
+        IS_TEST: result.NODE_ENV === 'test',
+    };
+};
 
 // Validate required environment variables in production
 if (env.IS_PRODUCTION) {

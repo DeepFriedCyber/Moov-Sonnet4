@@ -8,6 +8,10 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "jest",
+    "test:vitest": "vitest",
+    "test:vitest:ui": "vitest --ui",
+    "test:vitest:run": "vitest run",
+    "test:env": "vitest run src/config/env.test.ts",
     "lint": "eslint src/**/*.ts",
     "migrate": "node -r tsx/cjs src/scripts/migrate.ts"
   },
@@ -48,10 +52,12 @@
     "@types/pg": "^8.10.0",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
+    "@vitest/ui": "^3.2.4",
     "eslint": "^8.0.0",
     "jest": "^29.7.0",
     "ts-jest": "^29.4.0",
     "tsx": "^4.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vitest": "^3.2.4"
   }
 }
