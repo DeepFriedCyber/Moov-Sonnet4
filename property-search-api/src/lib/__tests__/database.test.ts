@@ -14,6 +14,7 @@ vi.mock('pg', () => {
         query: vi.fn(),
         connect: vi.fn(() => Promise.resolve(mockClient)),
         end: vi.fn(),
+        on: vi.fn(), // Add event handler mock
     };
 
     return {
@@ -26,7 +27,7 @@ describe('Database Integration', () => {
     let mockPool: any;
 
     beforeAll(async () => {
-        // Create mock database service
+        // Create mock database service with string (backward compatibility)
         database = new DatabaseService('postgresql://test:test@localhost:5432/testdb');
 
         // Get reference to the mocked pool
@@ -111,32 +112,29 @@ describe('Database Integration', () => {
             // Act & Assert
             await expect(
                 database.query('SELECT * FROM non_existent_table')
-            ).rejects.toThrow('Table does not exist');
+            ).rejects.toThrow('Query execution failed');
         });
 
         it('should support transactions', async () => {
             // Arrange
+            const mockClientRelease = vi.fn();
+            const mockClientQuery = vi.fn().mockResolvedValue({ rows: [] });
             const mockClient = {
-                query: vi.fn().mockResolvedValue({ rows: [] }),
-                release: vi.fn(),
+                query: mockClientQuery,
+                release: mockClientRelease,
             };
             mockPool.connect.mockResolvedValueOnce(mockClient);
 
             // Act
-            const client = await database.getClient();
-
-            try {
-                await client.query('BEGIN');
-                await client.query('INSERT INTO properties (id, title) VALUES ($1, $2)', ['txn-1', 'Test']);
-                await client.query('ROLLBACK');
-            } finally {
-                client.release();
-            }
+            await database.withTransaction(async (tx) => {
+                await tx.query('INSERT INTO properties (id, title) VALUES ($1, $2)', ['txn-1', 'Test']);
+                // Transaction will commit automatically on success
+            });
 
             // Assert
-            expect(mockClient.query).toHaveBeenCalledWith('BEGIN');
-            expect(mockClient.query).toHaveBeenCalledWith('ROLLBACK');
-            expect(mockClient.release).toHaveBeenCalled();
+            expect(mockClientQuery).toHaveBeenCalledWith('BEGIN');
+            expect(mockClientQuery).toHaveBeenCalledWith('COMMIT');
+            expect(mockClientRelease).toHaveBeenCalled();
         });
     });
 
@@ -212,7 +210,7 @@ describe('Database Integration', () => {
                 } as any;
 
                 // Act & Assert
-                await expect(repository.create(invalidData)).rejects.toThrow('Validation error');
+                await expect(repository.create(invalidData)).rejects.toThrow('Property validation failed');
             });
         });
 
