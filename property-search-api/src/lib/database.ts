@@ -1,6 +1,8 @@
 // TDD REFACTOR PHASE - Enhanced Database Integration Implementation
 import { Pool, PoolClient } from 'pg';
+import { EventEmitter } from 'events';
 import { Property } from '@/types';
+import { isDevelopment } from '../config/env';
 
 // Import refactored modules
 import {
@@ -30,13 +32,15 @@ import {
 } from './interfaces/database.interfaces';
 
 // Enhanced Database Service with better configuration and error handling
-export class DatabaseService implements IDatabaseService {
+export class DatabaseService extends EventEmitter implements IDatabaseService {
     private pool: Pool;
     private config: DatabaseConfig;
     private metrics: DatabaseMetrics;
     private isInitialized = false;
 
     constructor(config: DatabaseConfig | string) {
+        super(); // Initialize EventEmitter
+
         // Support both string and config object
         if (typeof config === 'string') {
             this.config = DatabaseConfigSchema.parse({ connectionString: config });
@@ -68,11 +72,21 @@ export class DatabaseService implements IDatabaseService {
     private setupEventHandlers(): void {
         this.pool.on('connect', () => {
             this.metrics.totalConnections++;
+            if (process.env.NODE_ENV === 'development') {
+                console.log(`Database connection established. Total: ${this.metrics.totalConnections}`);
+            }
         });
 
         this.pool.on('error', (err) => {
             this.metrics.errors++;
             console.error('Database pool error:', err);
+
+            // Emit custom event for monitoring systems
+            this.emit('poolError', err);
+        });
+
+        this.pool.on('remove', () => {
+            this.metrics.totalConnections = Math.max(0, this.metrics.totalConnections - 1);
         });
     }
 
@@ -171,9 +185,15 @@ export class DatabaseService implements IDatabaseService {
             const queryTime = Date.now() - startTime;
             this.updateQueryMetrics(queryTime);
 
+            // Emit performance event for monitoring
+            if (queryTime > 1000) { // Slow query threshold
+                this.emit('slowQuery', { query: text, duration: queryTime, params });
+            }
+
             return result;
         } catch (error) {
             this.metrics.errors++;
+            this.emit('queryError', { query: text, error, params });
             throw new QueryError('Query execution failed', text, error);
         }
     }
@@ -219,11 +239,112 @@ export class DatabaseService implements IDatabaseService {
     }
 
     async close(): Promise<void> {
-        await this.pool.end();
+        try {
+            await this.pool.end();
+            this.emit('closed');
+        } catch (error) {
+            this.emit('closeError', error);
+            throw error;
+        }
+    }
+
+    // Utility method to check if database is ready
+    isReady(): boolean {
+        return this.isInitialized;
+    }
+
+    // Get connection pool status
+    getPoolStatus(): {
+        totalCount: number;
+        idleCount: number;
+        waitingCount: number;
+    } {
+        return {
+            totalCount: this.pool.totalCount,
+            idleCount: this.pool.idleCount,
+            waitingCount: this.pool.waitingCount,
+        };
     }
 
     getMetrics(): DatabaseMetrics {
         return { ...this.metrics };
+    }
+
+    // Enhanced health check with detailed status
+    async getDetailedHealthStatus(): Promise<{
+        isHealthy: boolean;
+        connectionPool: {
+            totalConnections: number;
+            activeConnections: number;
+            idleConnections: number;
+            waitingConnections: number;
+        };
+        performance: {
+            averageQueryTime: number;
+            slowQueries: number;
+            totalQueries: number;
+            errorRate: number;
+        };
+        lastHealthCheck: Date;
+    }> {
+        const isHealthy = await this.healthCheck();
+        const metrics = this.getMetrics();
+
+        return {
+            isHealthy,
+            connectionPool: {
+                totalConnections: metrics.totalConnections,
+                activeConnections: metrics.activeConnections,
+                idleConnections: metrics.idleConnections,
+                waitingConnections: 0, // pg doesn't expose this directly
+            },
+            performance: {
+                averageQueryTime: metrics.averageQueryTime,
+                slowQueries: metrics.slowQueries,
+                totalQueries: metrics.totalQueries,
+                errorRate: metrics.totalQueries > 0 ? metrics.errors / metrics.totalQueries : 0,
+            },
+            lastHealthCheck: new Date(),
+        };
+    }
+
+    // Health check with timeout
+    async healthCheckWithTimeout(timeoutMs: number): Promise<boolean> {
+        return new Promise((resolve) => {
+            const timeout = setTimeout(() => resolve(false), timeoutMs);
+
+            this.healthCheck()
+                .then((result) => {
+                    clearTimeout(timeout);
+                    resolve(result);
+                })
+                .catch(() => {
+                    clearTimeout(timeout);
+                    resolve(false);
+                });
+        });
+    }
+
+    // Get client with retry logic
+    async getClientWithRetry(maxRetries: number, delayMs: number): Promise<PoolClient> {
+        let lastError: Error;
+
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                return await this.getClient();
+            } catch (error) {
+                lastError = error as Error;
+
+                if (attempt === maxRetries) {
+                    throw new ConnectionError(`Failed to get database client after ${maxRetries} attempts`, lastError);
+                }
+
+                // Wait before retry
+                await new Promise(resolve => setTimeout(resolve, delayMs));
+            }
+        }
+
+        throw lastError!;
     }
 
     async withTransaction<T>(callback: (tx: ITransaction) => Promise<T>): Promise<T> {
