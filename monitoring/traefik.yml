@@ -1,0 +1,148 @@
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+api:
+  dashboard: true
+  insecure: true
+
+metrics:
+  prometheus:
+    addEntryPointsLabels: true
+    addServicesLabels: true
+    addRoutersLabels: true
+
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: moov_default
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: admin@moov-property.com
+      storage: /acme.json
+      httpChallenge:
+        entryPoint: web
+
+# Middleware
+http:
+  middlewares:
+    # Security headers
+    security-headers:
+      headers:
+        customRequestHeaders:
+          X-Forwarded-Proto: "https"
+        customResponseHeaders:
+          X-Frame-Options: "DENY"
+          X-Content-Type-Options: "nosniff"
+          X-XSS-Protection: "1; mode=block"
+          Strict-Transport-Security: "max-age=31536000; includeSubDomains"
+          Content-Security-Policy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'"
+    
+    # Rate limiting
+    rate-limit:
+      rateLimit:
+        burst: 100
+        average: 50
+    
+    # Compression
+    compression:
+      compress: {}
+
+  # Services configuration
+  services:
+    # Frontend service
+    frontend:
+      loadBalancer:
+        servers:
+          - url: "http://frontend-blue:3000"
+          - url: "http://frontend-green:3000"
+        healthCheck:
+          path: "/health"
+          interval: "30s"
+          timeout: "5s"
+    
+    # API service
+    api:
+      loadBalancer:
+        servers:
+          - url: "http://api-blue:3001"
+          - url: "http://api-green:3001"
+        healthCheck:
+          path: "/health"
+          interval: "30s"
+          timeout: "5s"
+    
+    # Embedding service
+    embedding:
+      loadBalancer:
+        servers:
+          - url: "http://embedding-1:8001"
+          - url: "http://embedding-2:8001"
+        healthCheck:
+          path: "/health"
+          interval: "30s"
+          timeout: "5s"
+
+  # Routers configuration
+  routers:
+    # Frontend router
+    frontend-router:
+      rule: "Host(`moov-property.com`) || Host(`www.moov-property.com`)"
+      service: frontend
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - security-headers
+        - compression
+        - rate-limit
+    
+    # API router
+    api-router:
+      rule: "Host(`api.moov-property.com`)"
+      service: api
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - security-headers
+        - compression
+        - rate-limit
+    
+    # Embedding service router
+    embedding-router:
+      rule: "Host(`embedding.moov-property.com`)"
+      service: embedding
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - security-headers
+        - rate-limit
+
+    # HTTP to HTTPS redirect
+    redirect-to-https:
+      rule: "hostregexp(`{host:.+}`)"
+      entryPoints:
+        - web
+      middlewares:
+        - redirect-to-https
+      service: api@internal
+
+  middlewares:
+    redirect-to-https:
+      redirectScheme:
+        scheme: https
+        permanent: true

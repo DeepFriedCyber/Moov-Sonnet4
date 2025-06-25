@@ -1,0 +1,102 @@
+groups:
+  - name: business
+    interval: 60s
+    rules:
+      # Search performance alerts
+      - alert: SearchSuccessRateLow
+        expr: |
+          (
+            sum(rate(search_requests_total{status="success"}[10m]))
+            /
+            sum(rate(search_requests_total[10m]))
+          ) < 0.95
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low search success rate"
+          description: "Search success rate is {{ $value | humanizePercentage }} over the last 10 minutes"
+
+      - alert: SearchLatencyHigh
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(search_duration_seconds_bucket[10m])) by (le)
+          ) > 3
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High search latency"
+          description: "95th percentile search latency is {{ $value }}s"
+
+      # User engagement alerts
+      - alert: LowUserEngagement
+        expr: |
+          rate(user_sessions_total[1h]) < 10
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low user engagement"
+          description: "User session rate is {{ $value }} per second over the last hour"
+
+      - alert: HighBounceRate
+        expr: |
+          (
+            sum(rate(user_sessions_total{duration="<30s"}[1h]))
+            /
+            sum(rate(user_sessions_total[1h]))
+          ) > 0.7
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High bounce rate"
+          description: "Bounce rate is {{ $value | humanizePercentage }} over the last hour"
+
+      # Property data alerts
+      - alert: PropertyDataStale
+        expr: |
+          (time() - property_last_update_timestamp) > 86400
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Property data is stale"
+          description: "Property data hasn't been updated for {{ $value | humanizeDuration }}"
+
+      - alert: LowPropertyCount
+        expr: |
+          property_total_count < 1000
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Low property count"
+          description: "Total property count is {{ $value }}, which is below the expected threshold"
+
+      # Embedding quality alerts
+      - alert: EmbeddingQualityLow
+        expr: |
+          avg(embedding_similarity_score) < 0.7
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low embedding quality"
+          description: "Average embedding similarity score is {{ $value }}"
+
+      # Revenue impact alerts (if applicable)
+      - alert: ConversionRateLow
+        expr: |
+          (
+            sum(rate(property_inquiries_total[1h]))
+            /
+            sum(rate(property_views_total[1h]))
+          ) < 0.05
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low conversion rate"
+          description: "Property inquiry conversion rate is {{ $value | humanizePercentage }}"

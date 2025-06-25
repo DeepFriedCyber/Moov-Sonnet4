@@ -1,0 +1,272 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Moov Business Metrics",
+    "tags": ["moov", "business", "kpi"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Daily Active Users",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(increase(user_sessions_total[24h]))",
+            "legendFormat": "DAU"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": null},
+                {"color": "yellow", "value": 100},
+                {"color": "green", "value": 500}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Search Success Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(rate(search_requests_total{status=\"success\"}[1h])) / sum(rate(search_requests_total[1h])) * 100",
+            "legendFormat": "Success Rate %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": null},
+                {"color": "yellow", "value": 90},
+                {"color": "green", "value": 95}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Average Search Time",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(search_duration_seconds_bucket[1h])) by (le))",
+            "legendFormat": "Median"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 2},
+                {"color": "red", "value": 5}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0}
+      },
+      {
+        "id": 4,
+        "title": "Property Views",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(increase(property_views_total[1h]))",
+            "legendFormat": "Views/hour"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": null},
+                {"color": "yellow", "value": 50},
+                {"color": "green", "value": 200}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0}
+      },
+      {
+        "id": 5,
+        "title": "Search Trends",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(search_requests_total[5m]))",
+            "legendFormat": "Total Searches"
+          },
+          {
+            "expr": "sum(rate(search_requests_total{status=\"success\"}[5m]))",
+            "legendFormat": "Successful Searches"
+          },
+          {
+            "expr": "sum(rate(search_requests_total{status=\"error\"}[5m]))",
+            "legendFormat": "Failed Searches"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Searches per second",
+            "min": 0
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+      },
+      {
+        "id": 6,
+        "title": "User Engagement",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(user_sessions_total[5m]))",
+            "legendFormat": "New Sessions"
+          },
+          {
+            "expr": "sum(rate(user_sessions_total{duration=\">5m\"}[5m]))",
+            "legendFormat": "Engaged Sessions (>5min)"
+          },
+          {
+            "expr": "sum(rate(property_inquiries_total[5m]))",
+            "legendFormat": "Property Inquiries"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Events per second",
+            "min": 0
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+      },
+      {
+        "id": 7,
+        "title": "Top Search Terms",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "topk(10, sum by (search_term) (increase(search_requests_total[1h])))",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {
+                "Time": true,
+                "__name__": true
+              },
+              "renameByName": {
+                "search_term": "Search Term",
+                "Value": "Count"
+              }
+            }
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 16}
+      },
+      {
+        "id": 8,
+        "title": "Popular Property Types",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum by (property_type) (increase(property_views_total[1h]))",
+            "legendFormat": "{{property_type}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 16}
+      },
+      {
+        "id": 9,
+        "title": "Geographic Distribution",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "topk(10, sum by (location) (increase(search_requests_total[1h])))",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {
+                "Time": true,
+                "__name__": true
+              },
+              "renameByName": {
+                "location": "Location",
+                "Value": "Searches"
+              }
+            }
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 16}
+      },
+      {
+        "id": 10,
+        "title": "Conversion Funnel",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(page_views_total{page=\"home\"}[5m]))",
+            "legendFormat": "Homepage Views"
+          },
+          {
+            "expr": "sum(rate(search_requests_total[5m]))",
+            "legendFormat": "Searches"
+          },
+          {
+            "expr": "sum(rate(property_views_total[5m]))",
+            "legendFormat": "Property Views"
+          },
+          {
+            "expr": "sum(rate(property_inquiries_total[5m]))",
+            "legendFormat": "Inquiries"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Events per second",
+            "min": 0,
+            "logBase": 10
+          }
+        ],
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 24}
+      }
+    ],
+    "time": {
+      "from": "now-24h",
+      "to": "now"
+    },
+    "refresh": "1m"
+  }
+}

@@ -17,6 +17,7 @@ import propertyRoutes from './routes/properties';
 import searchRoutes from './routes/search';
 import chatRoutes from './routes/chat';
 import webhookRoutes from './routes/webhooks';
+import healthRoutes from './routes/health';
 
 const app = express();
 const server = createServer(app);
@@ -53,10 +54,8 @@ app.use('/api/search', searchRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/webhooks', webhookRoutes);
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
+// Health and monitoring routes
+app.use('/', healthRoutes);
 
 // Socket.IO for real-time chat
 io.on('connection', (socket) => {

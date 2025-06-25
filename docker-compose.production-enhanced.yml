@@ -1,0 +1,252 @@
+version: '3.8'
+
+services:
+  # Blue-Green Frontend Services
+  frontend-blue:
+    image: ${REGISTRY}/${IMAGE_NAME}-frontend:${VERSION}
+    container_name: moov-frontend-blue
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=https://api.moov-property.com
+      - NEXT_PUBLIC_EMBEDDING_SERVICE_URL=https://embedding.moov-property.com
+      - NEXT_PUBLIC_MAPTILER_KEY=${MAPTILER_API_KEY}
+    networks:
+      - moov_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    labels:
+      - "traefik.enable=false"  # Controlled by Traefik config
+
+  frontend-green:
+    image: ${REGISTRY}/${IMAGE_NAME}-frontend:${VERSION}
+    container_name: moov-frontend-green
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=https://api.moov-property.com
+      - NEXT_PUBLIC_EMBEDDING_SERVICE_URL=https://embedding.moov-property.com
+      - NEXT_PUBLIC_MAPTILER_KEY=${MAPTILER_API_KEY}
+    networks:
+      - moov_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    labels:
+      - "traefik.enable=false"  # Controlled by Traefik config
+
+  # Blue-Green API Services
+  api-blue:
+    image: ${REGISTRY}/${IMAGE_NAME}-api:${VERSION}
+    container_name: moov-api-blue
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - EMBEDDING_SERVICE_URL=http://embedding-1:8001
+      - FRONTEND_URL=https://moov-property.com
+    networks:
+      - moov_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    labels:
+      - "traefik.enable=false"  # Controlled by Traefik config
+    depends_on:
+      - postgres
+      - redis-master
+
+  api-green:
+    image: ${REGISTRY}/${IMAGE_NAME}-api:${VERSION}
+    container_name: moov-api-green
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - EMBEDDING_SERVICE_URL=http://embedding-2:8001
+      - FRONTEND_URL=https://moov-property.com
+    networks:
+      - moov_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    labels:
+      - "traefik.enable=false"  # Controlled by Traefik config
+    depends_on:
+      - postgres
+      - redis-master
+
+  # Embedding Services (Load Balanced)
+  embedding-1:
+    image: ${REGISTRY}/${IMAGE_NAME}-embedding:${VERSION}
+    container_name: moov-embedding-1
+    environment:
+      - ENVIRONMENT=production
+      - MODEL_PATH=/app/models
+      - REDIS_URL=${REDIS_URL}
+      - MODEL_NAME=sentence-transformers/all-MiniLM-L6-v2
+      - WORKERS=4
+    volumes:
+      - embedding_models:/app/models
+    networks:
+      - moov_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2'
+    depends_on:
+      - redis-master
+
+  embedding-2:
+    image: ${REGISTRY}/${IMAGE_NAME}-embedding:${VERSION}
+    container_name: moov-embedding-2
+    environment:
+      - ENVIRONMENT=production
+      - MODEL_PATH=/app/models
+      - REDIS_URL=${REDIS_URL}
+      - MODEL_NAME=sentence-transformers/all-mpnet-base-v2
+      - WORKERS=2
+    volumes:
+      - embedding_models:/app/models
+    networks:
+      - moov_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2'
+    depends_on:
+      - redis-master
+
+  # Database
+  postgres:
+    image: pgvector/pgvector:pg15
+    container_name: moov-postgres
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_EXTENSIONS=vector
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./property-search-api/migrations:/docker-entrypoint-initdb.d
+    networks:
+      - moov_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1'
+
+  # Redis Master
+  redis-master:
+    image: redis:7-alpine
+    container_name: moov-redis-master
+    command: redis-server --appendonly yes --maxmemory 1gb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_master_data:/data
+    networks:
+      - moov_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+
+  # Redis Slave
+  redis-slave:
+    image: redis:7-alpine
+    container_name: moov-redis-slave
+    command: redis-server --slaveof redis-master 6379
+    volumes:
+      - redis_slave_data:/data
+    networks:
+      - moov_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      - redis-master
+
+  # Backup Service
+  backup:
+    image: postgres:15-alpine
+    container_name: moov-backup
+    environment:
+      - PGPASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - backup_data:/backups
+      - ./scripts/backup.sh:/backup.sh
+    networks:
+      - moov_network
+    restart: unless-stopped
+    command: |
+      sh -c "
+        while true; do
+          sleep 86400  # 24 hours
+          pg_dump -h postgres -U ${POSTGRES_USER} -d ${POSTGRES_DB} > /backups/backup_$$(date +%Y%m%d_%H%M%S).sql
+          find /backups -name '*.sql' -mtime +7 -delete  # Keep backups for 7 days
+        done
+      "
+    depends_on:
+      - postgres
+
+networks:
+  moov_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_master_data:
+    driver: local
+  redis_slave_data:
+    driver: local
+  embedding_models:
+    driver: local
+  backup_data:
+    driver: local

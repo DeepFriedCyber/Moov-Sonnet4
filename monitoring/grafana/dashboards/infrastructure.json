@@ -1,0 +1,243 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Moov Infrastructure Monitoring",
+    "tags": ["moov", "infrastructure", "system"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "System CPU Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "100 - (avg by (instance) (irate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+            "legendFormat": "{{instance}}"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "CPU Usage (%)",
+            "min": 0,
+            "max": 100
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Memory Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "(node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100",
+            "legendFormat": "{{instance}}"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Memory Usage (%)",
+            "min": 0,
+            "max": 100
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Disk Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "(node_filesystem_size_bytes{fstype!=\"tmpfs\"} - node_filesystem_free_bytes{fstype!=\"tmpfs\"}) / node_filesystem_size_bytes{fstype!=\"tmpfs\"} * 100",
+            "legendFormat": "{{instance}} - {{mountpoint}}"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Disk Usage (%)",
+            "min": 0,
+            "max": 100
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+      },
+      {
+        "id": 4,
+        "title": "Network I/O",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "irate(node_network_receive_bytes_total{device!=\"lo\"}[5m])",
+            "legendFormat": "{{instance}} - {{device}} RX"
+          },
+          {
+            "expr": "irate(node_network_transmit_bytes_total{device!=\"lo\"}[5m])",
+            "legendFormat": "{{instance}} - {{device}} TX"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Bytes/sec",
+            "min": 0
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+      },
+      {
+        "id": 5,
+        "title": "Docker Container Status",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "up{job=~\".*\"}",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {
+                "Time": true,
+                "__name__": true
+              },
+              "renameByName": {
+                "instance": "Instance",
+                "job": "Service",
+                "Value": "Status"
+              }
+            }
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 16}
+      },
+      {
+        "id": 6,
+        "title": "Database Connections",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(pg_stat_database_numbackends{datname!~\"template.*|postgres\"})",
+            "legendFormat": "Active Connections"
+          },
+          {
+            "expr": "sum(pg_settings_max_connections)",
+            "legendFormat": "Max Connections"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Connections",
+            "min": 0
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 16}
+      },
+      {
+        "id": 7,
+        "title": "Redis Memory Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "redis_memory_used_bytes",
+            "legendFormat": "Used Memory"
+          },
+          {
+            "expr": "redis_memory_max_bytes",
+            "legendFormat": "Max Memory"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Bytes",
+            "min": 0
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 16}
+      },
+      {
+        "id": 8,
+        "title": "Load Balancer Health",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "traefik_service_server_up",
+            "legendFormat": "{{service}} - {{server}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "green", "value": 1}
+              ]
+            },
+            "mappings": [
+              {
+                "options": {
+                  "0": {"text": "Down"},
+                  "1": {"text": "Up"}
+                },
+                "type": "value"
+              }
+            ]
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24}
+      },
+      {
+        "id": 9,
+        "title": "SSL Certificate Expiry",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "(probe_ssl_earliest_cert_expiry - time()) / 86400",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {
+                "Time": true,
+                "__name__": true
+              },
+              "renameByName": {
+                "instance": "Domain",
+                "Value": "Days Until Expiry"
+              }
+            }
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": null},
+                {"color": "yellow", "value": 30},
+                {"color": "green", "value": 90}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24}
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "30s"
+  }
+}

@@ -1,132 +1,181 @@
-'use client'
+// Enhanced Authentication hooks using React Query
+'use client';
 
-import { useState, useEffect, createContext, useContext } from 'react'
+import { useState, useEffect, useCallback, createContext, useContext } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { getAuthState, LoginCredentials, RegisterData } from '@/lib/auth-api-client';
+import { User } from '@/types';
 
-interface User {
-    id: string
-    email: string
-    name?: string
-    role?: 'user' | 'agent' | 'admin'
+// Legacy interface for backward compatibility
+interface LegacyAuthContextType {
+    user: User | null;
+    login: (email: string, password: string) => Promise<void>;
+    register: (name: string, email: string, password: string) => Promise<void>;
+    logout: () => void;
+    isLoading: boolean;
+    isAuthenticated: boolean;
 }
 
-interface AuthContextType {
-    user: User | null
-    login: (email: string, password: string) => Promise<void>
-    register: (name: string, email: string, password: string) => Promise<void>
-    logout: () => void
-    isLoading: boolean
-    isAuthenticated: boolean
-}
+const AuthContext = createContext<LegacyAuthContextType | undefined>(undefined);
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+// Get the auth state singleton
+const authState = getAuthState();
 
-export function useAuth() {
-    const context = useContext(AuthContext)
-    if (context === undefined) {
-        // If no provider is found, return a default implementation
-        return useAuthWithoutProvider()
-    }
-    return context
-}
-
-// Default implementation when no provider is available
-function useAuthWithoutProvider(): AuthContextType {
-    const [user, setUser] = useState<User | null>(null)
-    const [isLoading, setIsLoading] = useState(false)
+// Enhanced auth hook with React Query
+export const useAuth = () => {
+    const [user, setUser] = useState<User | null>(authState.getUser());
+    const queryClient = useQueryClient();
 
     useEffect(() => {
-        // Check for stored authentication on mount
-        const storedUser = localStorage.getItem('user')
-        if (storedUser) {
-            try {
-                setUser(JSON.parse(storedUser))
-            } catch (error) {
-                console.error('Error parsing stored user:', error)
-                localStorage.removeItem('user')
+        // Subscribe to auth state changes
+        const unsubscribe = authState.subscribe((newUser) => {
+            setUser(newUser);
+            if (!newUser) {
+                // Clear all queries when user logs out
+                queryClient.clear();
             }
-        }
-    }, [])
+        });
 
-    const login = async (email: string, password: string): Promise<void> => {
-        setIsLoading(true)
+        return unsubscribe;
+    }, [queryClient]);
 
-        try {
-            // Simulate API call - replace with actual authentication logic
-            await new Promise(resolve => setTimeout(resolve, 1000))
+    const login = useMutation({
+        mutationFn: (credentials: LoginCredentials) => authState.login(credentials),
+        onSuccess: (user) => {
+            setUser(user);
+            // Invalidate all queries to refetch with new auth
+            queryClient.invalidateQueries();
+        },
+    });
 
-            // For demo purposes, accept any email/password combination
-            // In a real app, you'd validate against your backend
-            if (email && password) {
-                // Simple role assignment logic for demo - in real app this would come from backend
-                let role: 'user' | 'agent' | 'admin' = 'user'
-                if (email.includes('admin')) {
-                    role = 'admin'
-                } else if (email.includes('agent')) {
-                    role = 'agent'
-                }
+    const register = useMutation({
+        mutationFn: (data: RegisterData) => authState.register(data),
+        onSuccess: (user) => {
+            setUser(user);
+            queryClient.invalidateQueries();
+        },
+    });
 
-                const userData: User = {
-                    id: '1',
-                    email,
-                    name: email.split('@')[0],
-                    role
-                }
+    const logout = useMutation({
+        mutationFn: () => authState.logout(),
+        onSuccess: () => {
+            setUser(null);
+            queryClient.clear();
+        },
+    });
 
-                setUser(userData)
-                localStorage.setItem('user', JSON.stringify(userData))
-            } else {
-                throw new Error('Invalid credentials')
-            }
-        } catch (error) {
-            throw new Error('Login failed')
-        } finally {
-            setIsLoading(false)
-        }
-    }
+    // Legacy wrapper functions for backward compatibility
+    const legacyLogin = async (email: string, password: string): Promise<void> => {
+        await new Promise<void>((resolve, reject) => {
+            login.mutate({ email, password }, {
+                onSuccess: () => resolve(),
+                onError: (error) => reject(error),
+            });
+        });
+    };
 
-    const register = async (name: string, email: string, password: string): Promise<void> => {
-        setIsLoading(true)
+    const legacyRegister = async (name: string, email: string, password: string): Promise<void> => {
+        await new Promise<void>((resolve, reject) => {
+            register.mutate({
+                firstName: name.split(' ')[0] || name,
+                lastName: name.split(' ').slice(1).join(' ') || '',
+                email,
+                password
+            }, {
+                onSuccess: () => resolve(),
+                onError: (error) => reject(error),
+            });
+        });
+    };
 
-        try {
-            // Simulate API call - replace with actual registration logic
-            await new Promise(resolve => setTimeout(resolve, 1000))
-
-            // For demo purposes, accept any name/email/password combination
-            // In a real app, you'd validate and send to your backend
-            if (name && email && password) {
-                const userData: User = {
-                    id: Math.random().toString(36).substr(2, 9), // Generate random ID
-                    email,
-                    name,
-                    role: 'user' // Default role for new registrations
-                }
-
-                setUser(userData)
-                localStorage.setItem('user', JSON.stringify(userData))
-            } else {
-                throw new Error('All fields are required')
-            }
-        } catch (error) {
-            throw new Error('Registration failed')
-        } finally {
-            setIsLoading(false)
-        }
-    }
-
-    const logout = () => {
-        setUser(null)
-        localStorage.removeItem('user')
-    }
+    const legacyLogout = (): void => {
+        logout.mutate();
+    };
 
     return {
         user,
-        login,
-        register,
-        logout,
-        isLoading,
-        isAuthenticated: !!user
-    }
-}
+        isAuthenticated: !!user,
+        isLoading: login.isPending || register.isPending || logout.isPending,
 
-export { AuthContext }
-export type { User, AuthContextType }
+        // New enhanced methods
+        loginMutation: login.mutate,
+        registerMutation: register.mutate,
+        logoutMutation: logout.mutate,
+        loginError: login.error,
+        registerError: register.error,
+        logoutError: logout.error,
+
+        // Legacy methods for backward compatibility
+        login: legacyLogin,
+        register: legacyRegister,
+        logout: legacyLogout,
+    };
+};
+
+// Hook for getting the authenticated API client
+export const useAuthenticatedApiClient = () => {
+    return authState.getClient();
+};
+
+// Hook for protecting routes
+export const useRequireAuth = () => {
+    const { user, isAuthenticated } = useAuth();
+
+    return {
+        user,
+        isAuthenticated,
+        requireAuth: useCallback(() => {
+            if (!isAuthenticated) {
+                throw new Error('Authentication required');
+            }
+            return user!;
+        }, [isAuthenticated, user]),
+    };
+};
+
+// Hook for current user data with auto-refresh
+export const useCurrentUser = () => {
+    const { isAuthenticated } = useAuth();
+
+    return useQuery({
+        queryKey: ['currentUser'],
+        queryFn: () => authState.getClient().getCurrentUser(),
+        enabled: isAuthenticated,
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        retry: false,
+    });
+};
+
+// Hook for auth status checking
+export const useAuthStatus = () => {
+    const [isChecking, setIsChecking] = useState(true);
+    const { isAuthenticated } = useAuth();
+
+    useEffect(() => {
+        // Simulate auth check completion
+        const timer = setTimeout(() => {
+            setIsChecking(false);
+        }, 100);
+
+        return () => clearTimeout(timer);
+    }, []);
+
+    return {
+        isChecking,
+        isAuthenticated,
+        isReady: !isChecking,
+    };
+};
+
+// Legacy context provider for backward compatibility
+export const useAuthContext = () => {
+    const context = useContext(AuthContext);
+    if (context === undefined) {
+        // Fallback to the new enhanced auth
+        return useAuth();
+    }
+    return context;
+};
+
+export { AuthContext };
+export type { User, LegacyAuthContextType as AuthContextType };

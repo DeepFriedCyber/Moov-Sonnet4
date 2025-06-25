@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
@@ -92,11 +92,89 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    return {
+    import psutil
+    import time
+    
+    health_status = {
         "status": "healthy",
-        "models_loaded": list(models.keys()),
-        "redis_connected": redis_client is not None
+        "timestamp": time.time(),
+        "service": "embedding-service",
+        "version": "1.0.0",
+        "models": {
+            "loaded": list(models.keys()),
+            "primary_available": "primary" in models,
+            "fallback_available": "fallback" in models
+        },
+        "redis": {
+            "connected": False,
+            "ping_success": False
+        },
+        "system": {
+            "cpu_percent": psutil.cpu_percent(),
+            "memory_percent": psutil.virtual_memory().percent,
+            "disk_percent": psutil.disk_usage('/').percent
+        }
     }
+    
+    # Check Redis connection
+    if redis_client:
+        try:
+            redis_client.ping()
+            health_status["redis"]["connected"] = True
+            health_status["redis"]["ping_success"] = True
+        except Exception as e:
+            health_status["redis"]["connected"] = True
+            health_status["redis"]["ping_success"] = False
+            health_status["redis"]["error"] = str(e)
+            health_status["status"] = "degraded"
+    
+    # Check if critical models are loaded
+    if "primary" not in models:
+        health_status["status"] = "unhealthy"
+    
+    return health_status
+
+@app.get("/ready")
+async def readiness_check():
+    """Kubernetes readiness probe endpoint"""
+    if "primary" not in models:
+        raise HTTPException(status_code=503, detail="Primary model not loaded")
+    
+    return {"status": "ready", "models_loaded": list(models.keys())}
+
+@app.get("/live")
+async def liveness_check():
+    """Kubernetes liveness probe endpoint"""
+    return {"status": "alive", "timestamp": time.time()}
+
+@app.get("/metrics")
+async def metrics():
+    """Prometheus metrics endpoint"""
+    import psutil
+    import time
+    
+    metrics_text = f"""# HELP embedding_service_models_loaded Number of models loaded
+# TYPE embedding_service_models_loaded gauge
+embedding_service_models_loaded {len(models)}
+
+# HELP embedding_service_redis_connected Redis connection status
+# TYPE embedding_service_redis_connected gauge
+embedding_service_redis_connected {1 if redis_client else 0}
+
+# HELP embedding_service_memory_usage_percent Memory usage percentage
+# TYPE embedding_service_memory_usage_percent gauge
+embedding_service_memory_usage_percent {psutil.virtual_memory().percent}
+
+# HELP embedding_service_cpu_usage_percent CPU usage percentage
+# TYPE embedding_service_cpu_usage_percent gauge
+embedding_service_cpu_usage_percent {psutil.cpu_percent()}
+
+# HELP embedding_service_uptime_seconds Service uptime in seconds
+# TYPE embedding_service_uptime_seconds counter
+embedding_service_uptime_seconds {time.time()}
+"""
+    
+    return Response(content=metrics_text, media_type="text/plain")
 
 @app.post("/embed", response_model=EmbeddingResponse)
 async def create_embeddings(request: EmbeddingRequest):

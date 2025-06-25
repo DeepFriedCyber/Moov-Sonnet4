@@ -1,0 +1,142 @@
+groups:
+  - name: application
+    interval: 30s
+    rules:
+      # API alerts
+      - alert: APIHighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{job="api",status=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total{job="api"}[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate on API"
+          description: "Error rate is {{ $value | humanizePercentage }} for the last 5 minutes"
+
+      - alert: APIHighLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket{job="api"}[5m])) by (le)
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High API latency"
+          description: "95th percentile latency is {{ $value }}s"
+
+      # Embedding service alerts
+      - alert: EmbeddingServiceDown
+        expr: up{job="embedding"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Embedding service is down"
+          description: "Embedding service {{ $labels.instance }} is not responding"
+
+      - alert: EmbeddingHighLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(embedding_request_duration_seconds_bucket{job="embedding"}[5m])) by (le)
+          ) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High embedding service latency"
+          description: "95th percentile latency is {{ $value }}s"
+
+      # Database alerts
+      - alert: DatabaseConnectionsHigh
+        expr: |
+          (
+            sum(pg_stat_database_numbackends{datname!~"template.*|postgres"})
+            /
+            sum(pg_settings_max_connections)
+          ) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High database connection usage"
+          description: "Database connection usage is {{ $value | humanizePercentage }}"
+
+      - alert: DatabaseSlowQueries
+        expr: |
+          rate(pg_stat_database_tup_fetched[5m]) / rate(pg_stat_database_tup_returned[5m]) < 0.1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Database has slow queries"
+          description: "Database query efficiency is low: {{ $value | humanizePercentage }}"
+
+      # Redis alerts
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis is down"
+          description: "Redis instance {{ $labels.instance }} is not responding"
+
+      - alert: RedisMemoryHigh
+        expr: |
+          (
+            redis_memory_used_bytes{job="redis"}
+            /
+            redis_memory_max_bytes{job="redis"}
+          ) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis memory usage high"
+          description: "Redis memory usage is {{ $value | humanizePercentage }}"
+
+      # System alerts
+      - alert: HighCPUUsage
+        expr: |
+          (
+            100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+          ) > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value }}% on {{ $labels.instance }}"
+
+      - alert: HighMemoryUsage
+        expr: |
+          (
+            (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes)
+            /
+            node_memory_MemTotal_bytes
+          ) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value | humanizePercentage }} on {{ $labels.instance }}"
+
+      - alert: DiskSpaceLow
+        expr: |
+          (
+            (node_filesystem_size_bytes{fstype!="tmpfs"} - node_filesystem_free_bytes{fstype!="tmpfs"})
+            /
+            node_filesystem_size_bytes{fstype!="tmpfs"}
+          ) > 0.9
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Low disk space"
+          description: "Disk usage is {{ $value | humanizePercentage }} on {{ $labels.instance }}"
