@@ -12,7 +12,29 @@ export type FrontendEnvironment = z.infer<typeof FrontendEnvironmentSchema>;
 
 // Parse function - same public API
 export const parseFrontendEnv = (env: Record<string, unknown>): FrontendEnvironment => {
-    return FrontendEnvironmentSchema.parse(env);
+    try {
+        return FrontendEnvironmentSchema.parse(env);
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            const errorMessages = error.errors.map(err => {
+                const path = err.path.join('.');
+                return `${path}: ${err.message}`;
+            });
+
+            throw new Error(
+                `Environment validation failed:\n${errorMessages.join('\n')}`
+            );
+        }
+        throw error;
+    }
+};
+
+// Test-compatible function
+export const validateClientEnv = (): FrontendEnvironment => {
+    return parseFrontendEnv({
+        NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+        NEXT_PUBLIC_EMBEDDING_SERVICE_URL: process.env.NEXT_PUBLIC_EMBEDDING_SERVICE_URL,
+    });
 };
 
 // For actual usage in the app
