@@ -12,8 +12,20 @@
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest watch",
     "test:env": "vitest run src/config/env.test.ts",
+    "test:db-optimization": "vitest run src/__tests__/database/",
     "lint": "eslint src/**/*.ts",
-    "migrate": "node -r tsx/cjs src/scripts/migrate.ts"
+    "migrate": "node -r tsx/cjs src/scripts/migrate.ts",
+    "setup-db-optimization": "tsx scripts/setup-database-optimization.ts",
+    "setup-db-optimization:all": "tsx scripts/setup-database-optimization.ts --all",
+    "setup-db-optimization:indexes": "tsx scripts/setup-database-optimization.ts --create-indexes",
+    "setup-db-optimization:analyze": "tsx scripts/setup-database-optimization.ts --analyze",
+    "setup-db-optimization:report": "tsx scripts/setup-database-optimization.ts --report",
+    "test:performance": "tsx scripts/run-performance-tests.ts",
+    "test:performance:database": "tsx scripts/run-performance-tests.ts --database",
+    "test:performance:api": "tsx scripts/run-performance-tests.ts --api",
+    "test:performance:pool": "tsx scripts/run-performance-tests.ts --pool",
+    "test:performance:all": "tsx scripts/run-performance-tests.ts --all",
+    "test:performance:help": "tsx scripts/run-performance-tests.ts --help"
   },
   "dependencies": {
     "axios": "^1.10.0",

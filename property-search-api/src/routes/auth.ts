@@ -4,37 +4,40 @@ import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { getDatabase } from '../config/database';
 import { logger } from '../utils/logger';
+import { validateUserRegistration, validateUserLogin } from '../validation/userAuthValidation';
+import { createValidationMiddleware } from '../middleware/validationMiddleware';
 
 const router = Router();
 
-// Validation schemas
-const registerSchema = z.object({
-    email: z.string().email(),
-    password: z.string().min(6),
-    firstName: z.string().min(1),
-    lastName: z.string().min(1),
-});
-
-const loginSchema = z.object({
-    email: z.string().email(),
-    password: z.string().min(1),
-});
-
-// Register endpoint
+// Register endpoint with comprehensive validation
 router.post('/register', async (req, res): Promise<void> => {
     try {
-        const { email, password, firstName, lastName } = registerSchema.parse(req.body);
+        // Validate registration data using our comprehensive validation
+        const validationResult = validateUserRegistration(req.body);
+
+        if (!validationResult.success) {
+            res.status(400).json({
+                success: false,
+                error: 'Validation failed',
+                details: validationResult.error.issues.map(issue =>
+                    `${issue.path.join('.')}: ${issue.message}`
+                )
+            });
+            return;
+        }
+
+        const userData = validationResult.data;
 
         const db = getDatabase();
 
         // Check if user already exists
         const existingUser = await db.query(
             'SELECT id FROM users WHERE email = $1',
-            [email]
+            [userData.email]
         );
 
         if (existingUser.rows.length > 0) {
-            res.status(400).json({
+            res.status(409).json({
                 success: false,
                 error: 'User already exists with this email'
             });
@@ -42,14 +45,24 @@ router.post('/register', async (req, res): Promise<void> => {
         }
 
         // Hash password
-        const hashedPassword = await bcrypt.hash(password, 12);
+        const hashedPassword = await bcrypt.hash(userData.password, 12);
 
-        // Create user
+        // Create user with all validated fields
         const result = await db.query(
-            `INSERT INTO users (email, password_hash, first_name, last_name, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, NOW(), NOW())
-       RETURNING id, email, first_name, last_name, created_at`,
-            [email, hashedPassword, firstName, lastName]
+            `INSERT INTO users (
+                email, password_hash, first_name, last_name, phone,
+                marketing_opt_in, date_of_birth, created_at, updated_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW()) 
+            RETURNING id, email, first_name, last_name, phone, created_at`,
+            [
+                userData.email,
+                hashedPassword,
+                userData.firstName,
+                userData.lastName,
+                userData.phone,
+                userData.marketingOptIn,
+                userData.dateOfBirth || null
+            ]
         );
 
         const user = result.rows[0];
@@ -61,12 +74,16 @@ router.post('/register', async (req, res): Promise<void> => {
         }
 
         const token = jwt.sign(
-            { userId: user.id, email: user.email },
+            {
+                userId: user.id,
+                email: user.email,
+                tier: 'authenticated' // New users start as authenticated tier
+            },
             jwtSecret,
             { expiresIn: process.env.JWT_EXPIRES_IN || '7d' } as jwt.SignOptions
         );
 
-        logger.info(`User registered: ${email}`);
+        logger.info(`User registered: ${userData.email}`);
 
         res.status(201).json({
             success: true,
@@ -99,17 +116,32 @@ router.post('/register', async (req, res): Promise<void> => {
     }
 });
 
-// Login endpoint
+// Login endpoint with comprehensive validation
 router.post('/login', async (req, res): Promise<void> => {
     try {
-        const { email, password } = loginSchema.parse(req.body);
+        // Validate login data using our comprehensive validation
+        const validationResult = validateUserLogin(req.body);
+
+        if (!validationResult.success) {
+            res.status(400).json({
+                success: false,
+                error: 'Validation failed',
+                details: validationResult.error.issues.map(issue =>
+                    `${issue.path.join('.')}: ${issue.message}`
+                )
+            });
+            return;
+        }
+
+        const loginData = validationResult.data;
 
         const db = getDatabase();
 
         // Find user
         const result = await db.query(
-            'SELECT id, email, password_hash, first_name, last_name FROM users WHERE email = $1',
-            [email]
+            `SELECT id, email, password_hash, first_name, last_name, phone, 
+                    is_premium, created_at FROM users WHERE email = $1`,
+            [loginData.email]
         );
 
         if (result.rows.length === 0) {
@@ -123,29 +155,42 @@ router.post('/login', async (req, res): Promise<void> => {
         const user = result.rows[0];
 
         // Check password
-        const isValidPassword = await bcrypt.compare(password, user.password_hash);
+        const isValidPassword = await bcrypt.compare(loginData.password, user.password_hash);
 
         if (!isValidPassword) {
             res.status(401).json({
                 success: false,
-                error: 'Invalid credentials'
+                error: 'Invalid email or password'
             });
             return;
         }
 
-        // Generate JWT token
+        // Generate JWT token with user tier information
         const jwtSecret = process.env.JWT_SECRET;
         if (!jwtSecret) {
             throw new Error('JWT_SECRET is not configured');
         }
 
-        const token = jwt.sign(
-            { userId: user.id, email: user.email },
-            jwtSecret,
-            { expiresIn: process.env.JWT_EXPIRES_IN || '7d' } as jwt.SignOptions
+        const tokenPayload = {
+            userId: user.id,
+            email: user.email,
+            tier: user.is_premium ? 'premium' : 'authenticated'
+        };
+
+        const tokenOptions: any = { expiresIn: process.env.JWT_EXPIRES_IN || '7d' };
+        if (loginData.rememberMe) {
+            tokenOptions.expiresIn = '30d';
+        }
+
+        const token = jwt.sign(tokenPayload, jwtSecret, tokenOptions);
+
+        // Update last login
+        await db.query(
+            'UPDATE users SET last_login = NOW() WHERE id = $1',
+            [user.id]
         );
 
-        logger.info(`User logged in: ${email}`);
+        logger.info(`User logged in: ${loginData.email}`);
 
         res.json({
             success: true,
