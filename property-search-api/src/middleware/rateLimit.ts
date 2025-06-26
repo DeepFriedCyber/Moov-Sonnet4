@@ -1,242 +1,201 @@
-// REFACTORED Rate Limiting Middleware
+// REFACTORED Rate Limiting Middleware with TDD implementation and Redis support
+import rateLimit from 'express-rate-limit';
+import RedisStore from 'rate-limit-redis';
+import { Redis } from 'ioredis';
 import { Request, Response, NextFunction } from 'express';
+import { getEnv, hasRedis, isDevelopment, isTest } from '../config/env';
 
-// Constants for better maintainability
-export const RATE_LIMIT_DEFAULTS = {
-    WINDOW_MS: 15 * 60 * 1000, // 15 minutes
-    MAX_REQUESTS: 100,
-    MESSAGE: 'Too many requests from this IP, please try again later.',
-    SEARCH_WINDOW_MS: 60 * 1000, // 1 minute
-    SEARCH_MAX_REQUESTS: 30,
-    SEARCH_MESSAGE: 'Too many search requests, please slow down.',
-} as const;
-
-// Enhanced type definitions
+// Rate limit configuration interface
 export interface RateLimitConfig {
     windowMs: number;
-    maxRequests: number;
-    message: string;
+    max: number;
+    message?: string;
+    skipRedis?: boolean;
     keyGenerator?: (req: Request) => string;
     skip?: (req: Request) => boolean;
-    rules?: RateLimitRule[];
 }
 
-export interface RateLimitRule {
-    path: string;
-    method: string;
-    windowMs: number;
-    maxRequests: number;
-}
+// Default configurations
+const DEFAULT_API_CONFIG: RateLimitConfig = {
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    message: 'Too many requests from this IP, please try again later.',
+};
 
-export interface RateLimitData {
-    count: number;
-    resetTime: number;
-}
+const DEFAULT_AUTH_CONFIG: RateLimitConfig = {
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 5, // Limit auth attempts
+    message: 'Too many authentication attempts, please try again later.',
+};
 
-export interface RateLimitResponse {
-    error: true;
-    message: string;
-    code: 'RATE_LIMIT_EXCEEDED';
-    statusCode: 429;
-    retryAfter: number;
-}
+// Redis client singleton
+let redisClient: Redis | null = null;
 
-// Enhanced in-memory store with better typing
-class RateLimitStore {
-    private store = new Map<string, RateLimitData>();
-
-    get(key: string): RateLimitData | undefined {
-        return this.store.get(key);
+const getRedisClient = (): Redis | null => {
+    // Skip Redis in test environment or if not configured
+    if (process.env.NODE_ENV === 'test') {
+        return null;
     }
 
-    set(key: string, data: RateLimitData): void {
-        this.store.set(key, data);
-    }
-
-    clear(): void {
-        this.store.clear();
-    }
-
-    // Clean up expired entries
-    cleanup(): void {
-        const now = Date.now();
-        for (const [key, data] of this.store.entries()) {
-            if (data.resetTime <= now) {
-                this.store.delete(key);
-            }
-        }
-    }
-}
-
-// Global store instance
-const rateLimitStore = new RateLimitStore();
-
-// Enhanced key generator with better defaults
-const defaultKeyGenerator = (req: Request): string => req.ip || 'unknown';
-
-// Helper function to create rule-specific key
-const createRuleKey = (baseKey: string, rule: RateLimitRule): string =>
-    `${baseKey}-${rule.path}-${rule.method}`;
-
-// Main rate limiter creation function with improved structure
-export function createRateLimiter(config: RateLimitConfig) {
-    return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-        // Early exit for skipped requests
-        if (config.skip && config.skip(req)) {
-            return next();
-        }
-
-        // Handle rules-based configuration
-        if (config.rules) {
-            const matchingRule = findMatchingRule(config.rules, req);
-            if (matchingRule) {
-                const ruleConfig = createRuleConfig(config, matchingRule);
-                return applyRateLimit(req, res, next, ruleConfig);
-            }
-        }
-
-        // Apply default rate limiting
-        return applyRateLimit(req, res, next, config);
-    };
-}
-
-// Helper function to find matching rule
-function findMatchingRule(rules: RateLimitRule[], req: Request): RateLimitRule | undefined {
-    return rules.find(rule =>
-        req.url?.includes(rule.path) && req.method === rule.method
-    );
-}
-
-// Helper function to create rule-specific configuration
-function createRuleConfig(config: RateLimitConfig, rule: RateLimitRule): RateLimitConfig {
-    return {
-        ...config,
-        windowMs: rule.windowMs,
-        maxRequests: rule.maxRequests,
-        keyGenerator: (req) => createRuleKey(defaultKeyGenerator(req), rule),
-    };
-}
-
-// Core rate limiting logic with improved error handling
-function applyRateLimit(
-    req: Request,
-    res: Response,
-    next: NextFunction,
-    config: RateLimitConfig
-): void {
     try {
-        const keyGenerator = config.keyGenerator || defaultKeyGenerator;
-        const key = keyGenerator(req);
-        const now = Date.now();
+        if (!hasRedis()) {
+            return null;
+        }
+    } catch (error) {
+        // If environment validation fails, skip Redis
+        return null;
+    }
 
-        // Get or create rate limit data
-        const limitData = getOrCreateLimitData(key, now, config.windowMs);
+    try {
+        if (!redisClient) {
+            const env = getEnv();
+            redisClient = new Redis(env.REDIS_URL!, {
+                retryDelayOnFailover: 100,
+                maxRetriesPerRequest: 3,
+                lazyConnect: true,
+            });
 
-        // Update request count
-        limitData.count++;
-        rateLimitStore.set(key, limitData);
+            redisClient.on('error', (error) => {
+                console.error('Redis connection error:', error);
+                // Don't set to null immediately, let it retry
+            });
 
-        // Set standard rate limit headers
-        setRateLimitHeaders(res, config, limitData, now);
-
-        // Check if rate limit exceeded
-        if (limitData.count > config.maxRequests) {
-            handleRateLimitExceeded(res, config, limitData, now);
-            return;
+            redisClient.on('connect', () => {
+                if (isDevelopment()) {
+                    console.log('Redis connected for rate limiting');
+                }
+            });
         }
 
-        // Request allowed - continue
-        next();
+        return redisClient;
     } catch (error) {
-        // In case of any error, allow the request to continue
-        // but log the error for monitoring
-        console.error('Rate limiting error:', error);
-        next();
+        console.error('Failed to create Redis client:', error);
+        return null;
     }
-}
+};
 
-// Helper function to get or create limit data
-function getOrCreateLimitData(key: string, now: number, windowMs: number): RateLimitData {
-    let limitData = rateLimitStore.get(key);
-
-    if (!limitData || limitData.resetTime <= now) {
-        // Create new window
-        limitData = {
-            count: 0,
-            resetTime: now + windowMs,
-        };
+// Validation function
+const validateConfig = (config: RateLimitConfig): void => {
+    if (config.max <= 0) {
+        throw new Error('Rate limit max must be greater than 0');
     }
+    if (config.windowMs <= 0) {
+        throw new Error('Rate limit windowMs must be greater than 0');
+    }
+};
 
-    return limitData;
-}
+// Create API rate limiter
+export const createApiLimiter = (customConfig?: Partial<RateLimitConfig>) => {
+    const config = { ...DEFAULT_API_CONFIG, ...customConfig };
+    validateConfig(config);
 
-// Helper function to set rate limit headers
-function setRateLimitHeaders(
-    res: Response,
-    config: RateLimitConfig,
-    limitData: RateLimitData,
-    now: number
-): void {
-    const remaining = Math.max(0, config.maxRequests - limitData.count);
-    const resetTime = new Date(limitData.resetTime).toISOString();
+    const redis = config.skipRedis ? null : getRedisClient();
 
-    res.set('X-RateLimit-Limit', config.maxRequests.toString());
-    res.set('X-RateLimit-Remaining', remaining.toString());
-    res.set('X-RateLimit-Reset', resetTime);
-}
-
-// Helper function to handle rate limit exceeded
-function handleRateLimitExceeded(
-    res: Response,
-    config: RateLimitConfig,
-    limitData: RateLimitData,
-    now: number
-): void {
-    const retryAfter = Math.ceil((limitData.resetTime - now) / 1000);
-    res.set('Retry-After', retryAfter.toString());
-
-    const response: RateLimitResponse = {
-        error: true,
+    const rateLimitOptions: any = {
+        windowMs: config.windowMs,
+        max: config.max,
         message: config.message,
-        code: 'RATE_LIMIT_EXCEEDED',
-        statusCode: 429,
-        retryAfter,
+        standardHeaders: true,
+        legacyHeaders: false,
+        keyGenerator: config.keyGenerator || ((req: Request) => req.ip),
+        skip: config.skip,
     };
 
-    res.status(429).json(response);
-}
+    // Add Redis store if available
+    if (redis) {
+        rateLimitOptions.store = new RedisStore({
+            sendCommand: (...args: string[]) => redis.call(...args),
+            prefix: 'rate-limit:',
+        });
+    }
 
-// Predefined rate limiters with enhanced defaults
-export function createApiRateLimiter(overrides: Partial<RateLimitConfig> = {}) {
-    const config: RateLimitConfig = {
-        windowMs: RATE_LIMIT_DEFAULTS.WINDOW_MS,
-        maxRequests: RATE_LIMIT_DEFAULTS.MAX_REQUESTS,
-        message: RATE_LIMIT_DEFAULTS.MESSAGE,
-        ...overrides,
-    };
-    return createRateLimiter(config);
-}
+    return rateLimit(rateLimitOptions);
+};
 
-export function createSearchRateLimiter(overrides: Partial<RateLimitConfig> = {}) {
-    const config: RateLimitConfig = {
-        windowMs: RATE_LIMIT_DEFAULTS.SEARCH_WINDOW_MS,
-        maxRequests: RATE_LIMIT_DEFAULTS.SEARCH_MAX_REQUESTS,
-        message: RATE_LIMIT_DEFAULTS.SEARCH_MESSAGE,
-        ...overrides,
+// Create auth rate limiter
+export const createAuthLimiter = (customConfig?: Partial<RateLimitConfig>) => {
+    const config = { ...DEFAULT_AUTH_CONFIG, ...customConfig };
+    validateConfig(config);
+
+    const redis = config.skipRedis ? null : getRedisClient();
+
+    const rateLimitOptions: any = {
+        windowMs: config.windowMs,
+        max: config.max,
+        message: config.message,
+        standardHeaders: true,
+        legacyHeaders: false,
+        skipSuccessfulRequests: true, // Only count failed auth attempts
+        keyGenerator: config.keyGenerator || ((req: Request) => req.ip),
+        skip: config.skip,
     };
-    return createRateLimiter(config);
-}
+
+    // Add Redis store if available
+    if (redis) {
+        rateLimitOptions.store = new RedisStore({
+            sendCommand: (...args: string[]) => redis.call(...args),
+            prefix: 'auth-limit:',
+        });
+    }
+
+    return rateLimit(rateLimitOptions);
+};
+
+// Pre-configured limiters for easy use (lazy initialization)
+export const getApiLimiter = () => createApiLimiter();
+export const getAuthLimiter = () => createAuthLimiter();
 
 // Utility functions for testing and maintenance
-export function clearRateLimit(): void {
-    rateLimitStore.clear();
-}
+export const closeRedisConnection = async (): Promise<void> => {
+    if (redisClient) {
+        try {
+            await redisClient.quit();
+        } catch (error) {
+            console.error('Error closing Redis connection:', error);
+        } finally {
+            redisClient = null;
+        }
+    }
+};
 
-export function cleanupExpiredRateLimits(): void {
-    rateLimitStore.cleanup();
-}
+// Health check function
+export const checkRateLimitHealth = async (): Promise<{
+    redis: boolean;
+    memory: boolean;
+}> => {
+    const redis = getRedisClient();
+    let redisHealthy = false;
 
-// Optional: Auto-cleanup expired entries periodically
-if (typeof setInterval !== 'undefined') {
-    setInterval(cleanupExpiredRateLimits, 5 * 60 * 1000); // Every 5 minutes
-}
+    if (redis) {
+        try {
+            await redis.ping();
+            redisHealthy = true;
+        } catch (error) {
+            console.error('Redis health check failed:', error);
+        }
+    }
+
+    return {
+        redis: redisHealthy,
+        memory: true, // Memory store is always available
+    };
+};
+
+// Create specialized rate limiters for different endpoints
+export const createSearchLimiter = (customConfig?: Partial<RateLimitConfig>) => {
+    return createApiLimiter({
+        windowMs: 60 * 1000, // 1 minute
+        max: 30, // 30 searches per minute
+        message: 'Too many search requests, please slow down.',
+        ...customConfig,
+    });
+};
+
+export const createUploadLimiter = (customConfig?: Partial<RateLimitConfig>) => {
+    return createApiLimiter({
+        windowMs: 60 * 60 * 1000, // 1 hour
+        max: 50, // 50 uploads per hour
+        message: 'Too many upload requests, please try again later.',
+        ...customConfig,
+    });
+};
