@@ -18,7 +18,7 @@ describe('API Hooks', () => {
             },
         });
 
-        const mockApiClient = {
+        const mockApiClient: ApiClient = {
             searchProperties: vi.fn(),
             getProperty: vi.fn(),
             createProperty: vi.fn(),
@@ -26,7 +26,7 @@ describe('API Hooks', () => {
             deleteProperty: vi.fn(),
             healthCheck: vi.fn(),
             setAuthToken: vi.fn(),
-        } as any;
+        } as ApiClient;
 
         const wrapper = ({ children }: { children: React.ReactNode }) => (
             <QueryClientProvider client={queryClient}>

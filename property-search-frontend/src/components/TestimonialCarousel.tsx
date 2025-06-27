@@ -3,13 +3,14 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Star, ChevronLeft, ChevronRight } from 'lucide-react';
+import Image from 'next/image';
 
 const testimonials = [
   {
     id: 1,
     name: "Sarah Johnson",
     role: "First-time Buyer",
-    content: "I simply said 'modern flat near good transport links with a balcony' and Moov found exactly what I wanted in minutes. The AI really understands what you're looking for!",
+    content: "I simply said &apos;modern flat near good transport links with a balcony&apos; and Moov found exactly what I wanted in minutes. The AI really understands what you&apos;re looking for!",
     rating: 5,
     image: "https://images.unsplash.com/photo-1494790108755-2616b612b96c?w=80&h=80&fit=crop&crop=face"
   },
@@ -25,7 +26,7 @@ const testimonials = [
     id: 3,
     name: "Emma Williams",
     role: "Family Relocating",
-    content: "We were moving to a new city and needed a family home near good schools and parks. Moov's AI understood our family needs perfectly and found us our dream home.",
+    content: "We were moving to a new city and needed a family home near good schools and parks. Moov&apos;s AI understood our family needs perfectly and found us our dream home.",
     rating: 5,
     image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80&h=80&fit=crop&crop=face"
   }
@@ -78,16 +79,18 @@ export default function TestimonialCarousel() {
                   <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
                 ))}
               </div>
-              
+
               <blockquote className="text-xl md:text-2xl text-gray-800 mb-8 font-light leading-relaxed">
-                "{testimonials[current].content}"
+                &ldquo;{testimonials[current].content}&rdquo;
               </blockquote>
-              
+
               <div className="flex items-center">
-                <img
+                <Image
                   src={testimonials[current].image}
                   alt={testimonials[current].name}
-                  className="w-12 h-12 rounded-full mr-4"
+                  width={48}
+                  height={48}
+                  className="rounded-full mr-4"
                 />
                 <div>
                   <div className="font-semibold text-gray-900">{testimonials[current].name}</div>
@@ -111,9 +114,8 @@ export default function TestimonialCarousel() {
                 <button
                   key={index}
                   onClick={() => setCurrent(index)}
-                  className={`w-3 h-3 rounded-full transition-colors ${
-                    current === index ? 'bg-blue-600' : 'bg-gray-300'
-                  }`}
+                  className={`w-3 h-3 rounded-full transition-colors ${current === index ? 'bg-blue-600' : 'bg-gray-300'
+                    }`}
                 />
               ))}
             </div>

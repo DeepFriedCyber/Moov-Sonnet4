@@ -58,7 +58,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
                         <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
                         <h2 className="text-xl font-semibold mb-2">Something went wrong</h2>
                         <p className="text-gray-600 mb-4 text-center max-w-md">
-                            We're sorry, but something unexpected happened. Please try refreshing the page.
+                            We&apos;re sorry, but something unexpected happened. Please try refreshing the page.
                         </p>
                         <div className="flex gap-3">
                             <button

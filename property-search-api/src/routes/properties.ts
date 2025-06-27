@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+import { Router } from 'express';
 import { z } from 'zod';
 import { getDatabase } from '../config/database';
 import { logger } from '../utils/logger';

@@ -167,8 +167,8 @@ export class PropertyRepository {
         } = options;
 
         let paramIndex = 2;
-        const params: any[] = [JSON.stringify(embedding)];
-        let whereConditions = [`1 - (embedding <=> $1::vector) > ${similarityThreshold}`];
+        const params: unknown[] = [JSON.stringify(embedding)];
+        const whereConditions = [`1 - (embedding <=> $1::vector) > ${similarityThreshold}`];
 
         if (filters.minPrice) {
             whereConditions.push(`price >= $${paramIndex++}`);

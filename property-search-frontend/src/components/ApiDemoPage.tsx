@@ -2,13 +2,27 @@
 'use client';
 
 import React, { useState } from 'react';
-import { usePropertySearch, useProperty, useCreateProperty, useHealthCheck } from '@/hooks/useApi';
-import { Property } from '@/types';
+import { usePropertySearch, useCreateProperty, useHealthCheck } from '@/hooks/useApi';
+
+interface PropertyWithSimilarity {
+    id: string;
+    title: string;
+    price: number;
+    bedrooms?: number;
+    bathrooms?: number;
+    similarity_score?: number;
+    area?: number;
+    propertyType?: string;
+    listingType?: string;
+    location?: { city?: string };
+    agentId?: string;
+    description?: string;
+    features?: string[];
+}
 
 export const ApiDemoPage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedPropertyId, setSelectedPropertyId] = useState<string>('');
-    const [isCreating, setIsCreating] = useState(false);
 
     // API Hooks
     const {
@@ -17,15 +31,8 @@ export const ApiDemoPage: React.FC = () => {
         error: searchError,
         refetch: searchAgain
     } = usePropertySearch(
-        { query: searchQuery },
-        { enabled: !!searchQuery }
+        { query: searchQuery }
     );
-
-    const {
-        data: property,
-        isLoading: isLoadingProperty,
-        error: propertyError
-    } = useProperty(selectedPropertyId);
 
     const {
         data: healthStatus,

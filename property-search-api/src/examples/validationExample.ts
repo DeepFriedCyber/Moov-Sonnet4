@@ -394,7 +394,7 @@ app.post('/api/test/validation', (req, res) => {
 });
 
 // Error handling middleware
-app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((error: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
     console.error('Validation example error:', error);
 
     res.status(500).json({

@@ -170,9 +170,11 @@ export const useAuthStatus = () => {
 // Legacy context provider for backward compatibility
 export const useAuthContext = () => {
     const context = useContext(AuthContext);
+    const fallbackAuth = useAuth(); // Always call hooks unconditionally
+
     if (context === undefined) {
         // Fallback to the new enhanced auth
-        return useAuth();
+        return fallbackAuth;
     }
     return context;
 };

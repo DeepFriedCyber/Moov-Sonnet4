@@ -2,8 +2,8 @@
 import rateLimit from 'express-rate-limit';
 import RedisStore from 'rate-limit-redis';
 import { Redis } from 'ioredis';
-import { Request, Response, NextFunction } from 'express';
-import { getEnv, hasRedis, isDevelopment, isTest } from '../config/env';
+import { Request } from 'express';
+import { getEnv, hasRedis, isDevelopment } from '../config/env';
 
 // Rate limit configuration interface
 export interface RateLimitConfig {

@@ -15,7 +15,9 @@
     },
     "include": [
         "src/**/*",
-        "tests/**/*"
+        "tests/**/*",
+        "src/__tests__/**/*",
+        "jest-globals.d.ts"
     ],
     "exclude": [
         "node_modules",

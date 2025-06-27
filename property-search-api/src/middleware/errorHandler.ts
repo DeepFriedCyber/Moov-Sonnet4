@@ -8,7 +8,7 @@ export const globalErrorHandler = async (
   err: Error,
   req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ): Promise<void> => {
   // Extract request context
   const context = {

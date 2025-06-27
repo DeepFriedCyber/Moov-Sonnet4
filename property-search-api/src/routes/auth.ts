@@ -5,7 +5,6 @@ import { z } from 'zod';
 import { getDatabase } from '../config/database';
 import { logger } from '../utils/logger';
 import { validateUserRegistration, validateUserLogin } from '../validation/userAuthValidation';
-import { createValidationMiddleware } from '../middleware/validationMiddleware';
 
 const router = Router();
 

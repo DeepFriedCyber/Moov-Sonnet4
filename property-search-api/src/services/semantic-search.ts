@@ -1,5 +1,5 @@
 // src/services/semantic-search.ts
-import axios, { AxiosError } from 'axios';
+import axios from 'axios';
 
 export interface EmbeddingServiceConfig {
     embeddingUrls: string[];

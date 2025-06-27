@@ -1,8 +1,7 @@
 // src/components/homepage/HeroSection.tsx - REFACTORED
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Home, TrendingUp, Shield, Sparkles, MapPin, ChevronRight } from 'lucide-react';
-import clsx from 'clsx';
+import { motion } from 'framer-motion';
+import { Search, Home, TrendingUp, Sparkles, MapPin } from 'lucide-react';
 
 interface HeroSectionProps {
     onSearch: (query: string) => void;
@@ -83,7 +82,7 @@ export const HeroSection = ({ onSearch }: HeroSectionProps) => {
                         transition={{ delay: 0.2 }}
                         className="text-xl text-gray-600 mb-12 max-w-2xl mx-auto"
                     >
-                        Simply describe your dream property in your own words. Our AI understands exactly what you're looking for.
+                        Simply describe your dream property in your own words. Our AI understands exactly what you&apos;re looking for.
                     </motion.p>
 
                     {/* Enhanced Search Form */}

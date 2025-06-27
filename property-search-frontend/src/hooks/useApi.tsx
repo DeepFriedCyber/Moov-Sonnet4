@@ -7,8 +7,7 @@ import {
   useMutation,
   useQueryClient,
   UseQueryOptions,
-  UseMutationOptions,
-  QueryKey
+  UseMutationOptions
 } from '@tanstack/react-query';
 import { ApiClient, ApiError, PropertySearchResult, SearchOptions } from '@/lib/api-client';
 import { useAuthenticatedApiClient } from './useAuth';

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { Search, Home, TrendingUp, Shield, Sparkles, MapPin, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import SearchBar from '@/components/SearchBar';
@@ -61,15 +61,15 @@ export default function HomePage() {
             </h1>
 
             <p className="text-xl text-gray-600 mb-12 max-w-2xl mx-auto">
-              Simply describe your dream property in your own words. Our AI understands exactly what you're looking for.
+              Simply describe your dream property in your own words. Our AI understands exactly what you&apos;re looking for.
             </p>
 
             {/* Semantic Search Bar */}
             <div className="relative max-w-2xl mx-auto">
               <motion.div
-                animate={{ 
-                  boxShadow: isSearchFocused 
-                    ? '0 20px 40px -15px rgba(0, 0, 0, 0.2)' 
+                animate={{
+                  boxShadow: isSearchFocused
+                    ? '0 20px 40px -15px rgba(0, 0, 0, 0.2)'
                     : '0 10px 25px -10px rgba(0, 0, 0, 0.1)'
                 }}
                 transition={{ duration: 0.3 }}
@@ -182,7 +182,7 @@ export default function HomePage() {
             viewport={{ once: true }}
           >
             <h2 className="text-4xl font-bold mb-4">Ready to Find Your Dream Home?</h2>
-            <p className="text-xl mb-8 opacity-90">Join thousands who've found their perfect property with Moov</p>
+            <p className="text-xl mb-8 opacity-90">Join thousands who&apos;ve found their perfect property with Moov</p>
             <button
               onClick={() => router.push('/search')}
               className="inline-flex items-center gap-2 bg-white text-blue-600 px-8 py-4 rounded-lg font-semibold hover:bg-gray-50 transition-colors"

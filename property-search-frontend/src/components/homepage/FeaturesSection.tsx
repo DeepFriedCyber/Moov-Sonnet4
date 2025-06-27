@@ -75,7 +75,7 @@ export const FeaturesSection = () => {
                     viewport={{ once: true }}
                     className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto"
                 >
-                    {features.map((feature, index) => (
+                    {features.map((feature) => (
                         <motion.div
                             key={feature.title}
                             variants={itemVariants}

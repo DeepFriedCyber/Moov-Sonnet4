@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { Search, Mic, X, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -12,6 +12,20 @@ interface SearchBarProps {
   onBlur?: () => void;
   placeholder?: string;
   className?: string;
+}
+
+interface SpeechRecognition {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onstart: (() => void) | null;
+  onend: (() => void) | null;
+  onresult: ((event: { results: Array<Array<{ transcript: string }>> }) => void) | null;
+  start(): void;
+}
+
+interface WindowWithSpeech extends Window {
+  webkitSpeechRecognition: new () => SpeechRecognition;
 }
 
 export default function SearchBar({
@@ -44,14 +58,14 @@ export default function SearchBar({
       return;
     }
 
-    const recognition = new (window as any).webkitSpeechRecognition();
+    const recognition = new ((window as WindowWithSpeech).webkitSpeechRecognition)();
     recognition.lang = 'en-UK';
     recognition.continuous = false;
     recognition.interimResults = false;
 
     recognition.onstart = () => setIsListening(true);
     recognition.onend = () => setIsListening(false);
-    recognition.onresult = (event: any) => {
+    recognition.onresult = (event: { results: Array<Array<{ transcript: string }>> }) => {
       const transcript = event.results[0][0].transcript;
       onChange(transcript);
     };
@@ -85,11 +99,10 @@ export default function SearchBar({
                 exit={{ opacity: 0, scale: 0.8 }}
                 type="button"
                 onClick={handleVoiceInput}
-                className={`p-3 rounded-xl transition-colors ${
-                  isListening 
-                    ? 'bg-red-500 text-white' 
+                className={`p-3 rounded-xl transition-colors ${isListening
+                    ? 'bg-red-500 text-white'
                     : 'hover:bg-gray-100 text-gray-500'
-                }`}
+                  }`}
               >
                 <Mic className="w-5 h-5" />
               </motion.button>

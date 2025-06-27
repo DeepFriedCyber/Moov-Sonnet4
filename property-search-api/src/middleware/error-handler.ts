@@ -18,7 +18,7 @@ const handleApiError = (error: ApiError): Pick<ErrorResponse, 'message' | 'error
         message: error.message,
     };
 
-    if (error instanceof ValidationError && error.details) {
+    if (error.details) {
         response.errors = error.details;
     }
 
@@ -28,7 +28,17 @@ const handleApiError = (error: ApiError): Pick<ErrorResponse, 'message' | 'error
 const handleZodError = (error: ZodError): Pick<ErrorResponse, 'message' | 'errors'> => {
     return {
         message: VALIDATION_ERROR_MESSAGE,
-        errors: error.errors,
+        errors: error.errors.map(err => ({
+            field: err.path.join('.') || 'unknown',
+            message: err.message,
+            code: err.code,
+        })),
+    };
+};
+
+const handleGenericError = (error: Error): Pick<ErrorResponse, 'message'> => {
+    return {
+        message: error.message || DEFAULT_ERROR_MESSAGE,
     };
 };
 
@@ -36,36 +46,42 @@ const getStatusCode = (error: Error): number => {
     if (isApiError(error)) {
         return error.statusCode;
     }
+
     if (error instanceof ZodError) {
+        return 400; // Bad Request
+    }
+
+    if (error instanceof ValidationError) {
         return 400;
     }
-    return 500;
+
+    return 500; // Internal Server Error
 };
 
 const buildErrorResponse = (error: Error): ErrorResponse => {
-    const response: ErrorResponse = {
-        status: 'error',
-        message: DEFAULT_ERROR_MESSAGE,
-    };
+    const baseResponse: ErrorResponse = { status: 'error', message: '' };
 
     if (isApiError(error)) {
-        Object.assign(response, handleApiError(error));
+        Object.assign(baseResponse, handleApiError(error));
     } else if (error instanceof ZodError) {
-        Object.assign(response, handleZodError(error));
+        Object.assign(baseResponse, handleZodError(error));
+    } else {
+        Object.assign(baseResponse, handleGenericError(error));
     }
 
-    if (process.env.NODE_ENV === 'development' && error.stack) {
-        response.stack = error.stack;
+    // Include stack trace in development
+    if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+        baseResponse.stack = error.stack;
     }
 
-    return response;
+    return baseResponse;
 };
 
-export const errorHandler = (
+export const globalErrorHandler = (
     err: Error,
     req: Request,
     res: Response,
-    next: NextFunction
+    _next: NextFunction
 ): void => {
     const statusCode = getStatusCode(err);
     const response = buildErrorResponse(err);

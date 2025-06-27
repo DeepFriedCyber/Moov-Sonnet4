@@ -16,15 +16,16 @@ export interface SearchParams {
 }
 
 export interface SearchResult {
-    properties: any[];
+    properties: unknown[];
     total: number;
     searchType: 'hybrid' | 'text' | 'vector' | 'fallback';
     responseTime: number;
     metadata: {
         textResults?: number;
         vectorResults?: number;
-        poolStatus?: any;
-        healthCheck?: any;
+        poolStatus?: Record<string, unknown>;
+        healthCheck?: boolean | Record<string, unknown>;
+        error?: string;
     };
 }
 
@@ -68,7 +69,7 @@ export class SearchOrchestrator {
             }
         } catch (error) {
             this.logger.error('Search orchestration failed', {
-                error: error.message,
+                error: error instanceof Error ? error.message : String(error),
                 params: { ...params, embedding: params.embedding ? '[VECTOR_DATA]' : undefined }
             });
 
@@ -135,7 +136,7 @@ export class SearchOrchestrator {
                 }
             };
         } catch (error) {
-            this.logger.error('Text search failed', { error: error.message });
+            this.logger.error('Text search failed', { error: error instanceof Error ? error.message : String(error) });
             return await this.fallbackSearch(params, startTime);
         }
     }
@@ -187,7 +188,7 @@ export class SearchOrchestrator {
                 }
             };
         } catch (error) {
-            this.logger.error('Fallback search failed', { error: error.message });
+            this.logger.error('Fallback search failed', { error: error instanceof Error ? error.message : String(error) });
 
             return {
                 properties: [],
@@ -217,9 +218,9 @@ export class SearchOrchestrator {
         });
 
         // Add or enhance with vector search results
-        vectorHits.forEach((hit: any, index: number) => {
+        vectorHits.forEach((hit: Record<string, unknown>, _index: number) => {
             const existing = merged.get(hit.id);
-            const vectorScore = 1 - (hit.similarity_score || 0); // Assuming similarity_score is distance
+            const vectorScore = 1 - (typeof hit.similarity_score === 'number' ? hit.similarity_score : 0); // Assuming similarity_score is distance
 
             if (existing) {
                 // Combine scores for properties found in both searches
@@ -281,22 +282,22 @@ export class SearchOrchestrator {
             // Mock embedding for now
             return new Array(384).fill(0).map(() => Math.random() - 0.5);
         } catch (error) {
-            this.logger.error('Embedding generation failed', { error: error.message });
+            this.logger.error('Embedding generation failed', { error: error instanceof Error ? error.message : String(error) });
             throw new Error('Failed to generate embedding');
         }
     }
 
-    private async getCachedResults(params: SearchParams): Promise<any[]> {
+    private async getCachedResults(_params: SearchParams): Promise<unknown[]> {
         // Implement caching logic here
         // For now, return empty array
-        this.logger.info('Retrieving cached results', { query: params.query?.substring(0, 50) });
+        this.logger.info('Retrieving cached results', { query: _params.query?.substring(0, 50) });
         return [];
     }
 
     // Health monitoring method
     async getSearchHealth(): Promise<{
-        database: any;
-        meilisearch: any;
+        database: Record<string, unknown>;
+        meilisearch: Record<string, unknown>;
         overall: 'healthy' | 'degraded' | 'unhealthy';
     }> {
         const [dbHealth, meilisearchHealth] = await Promise.allSettled([

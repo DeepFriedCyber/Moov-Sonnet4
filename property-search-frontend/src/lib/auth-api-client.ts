@@ -1,5 +1,5 @@
 // Authentication-enhanced API Client
-import { ApiClient, createApiClient } from './api-client';
+import { ApiClient } from './api-client';
 import { User } from '@/types';
 
 export interface AuthTokens {
@@ -26,11 +26,17 @@ export interface AuthResponse {
     tokens: AuthTokens;
 }
 
+export interface ApiClientConfig {
+    baseURL: string;
+    timeout?: number;
+    headers?: Record<string, string>;
+}
+
 export class AuthenticatedApiClient extends ApiClient {
     private tokens: AuthTokens | null = null;
     private refreshPromise: Promise<AuthTokens> | null = null;
 
-    constructor(config: any) {
+    constructor(config: ApiClientConfig) {
         super(config);
         this.loadTokensFromStorage();
     }

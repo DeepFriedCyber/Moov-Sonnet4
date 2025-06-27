@@ -122,7 +122,7 @@ router.get('/sessions', async (req, res) => {
 // Send a message in a chat session
 router.post('/messages', async (req, res): Promise<void> => {
     try {
-        const { sessionId, message, userId } = chatMessageSchema.parse(req.body);
+        const { sessionId, message } = chatMessageSchema.parse(req.body);
         const db = getDatabase();
 
         // Verify session exists

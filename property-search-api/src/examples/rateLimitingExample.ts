@@ -49,8 +49,8 @@ app.use('/api/properties/favorites', propertyLimiter.favoritesLimiter());
 
 // Property search endpoint
 app.get('/api/properties/search', async (req, res) => {
-    // Your existing search logic here
-    const { q, location, minPrice, maxPrice } = req.query;
+    // Your existing search logic here - destructure but don't use in this example
+    // const { q, location, minPrice, maxPrice } = req.query;
 
     // Simulate search results
     const results = {

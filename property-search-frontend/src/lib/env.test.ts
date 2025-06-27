@@ -1,7 +1,7 @@
 // Additional test file for frontend environment validation
 // File: property-search-frontend/src/lib/env.test.ts
 import { describe, it, expect } from 'vitest';
-import { parseFrontendEnv, type FrontendEnvironment } from './env';
+import { parseFrontendEnv } from './env';
 
 describe('Frontend Environment Configuration', () => {
     it('should parse valid frontend environment variables', () => {

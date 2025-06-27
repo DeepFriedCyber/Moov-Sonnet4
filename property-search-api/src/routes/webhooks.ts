@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import { z } from 'zod';
 import crypto from 'crypto';
 import { getDatabase } from '../config/database';
 import { logger } from '../utils/logger';
@@ -287,7 +286,7 @@ async function handlePaymentFailed(db: any, invoice: any) {
     }
 }
 
-async function processWhatsAppMessage(message: any, contacts: any[]) {
+async function processWhatsAppMessage(message: any, _contacts: any[]) {
     try {
         const from = message.from;
         const messageType = message.type;

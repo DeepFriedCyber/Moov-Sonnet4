@@ -1,7 +1,6 @@
 // Optimized Property Service with Advanced Connection Pool Integration
 import { DatabaseService } from '../lib/database';
 import { Logger } from '../lib/logger';
-import { PoolClient } from 'pg';
 
 export interface PropertySearchParams {
     query?: string;

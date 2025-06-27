@@ -2,10 +2,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { usePropertySearch, useProperty } from '@/hooks/useApi';
+import { usePropertySearch } from '@/hooks/useApi';
 import { SearchBar } from './SearchBar';
 import { Property } from '@/types';
 import { AlertCircle, Search, MapPin, Bed, Bath, Square, Pound } from 'lucide-react';
+import Image from 'next/image';
 
 const EXAMPLE_SEARCHES = [
     'Pet-friendly flat with outdoor space',
@@ -29,9 +30,11 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onPropertyClick }
             {/* Property Image */}
             <div className="h-48 bg-gray-200 flex items-center justify-center">
                 {property.images.length > 0 ? (
-                    <img
+                    <Image
                         src={property.images[0]}
                         alt={property.title}
+                        width={400}
+                        height={200}
                         className="w-full h-full object-cover"
                     />
                 ) : (
@@ -149,9 +152,11 @@ const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ property, onC
                     {/* Property Images */}
                     {property.images.length > 0 && (
                         <div className="mb-4">
-                            <img
+                            <Image
                                 src={property.images[0]}
                                 alt={property.title}
+                                width={600}
+                                height={256}
                                 className="w-full h-64 object-cover rounded-lg"
                             />
                         </div>
@@ -281,7 +286,7 @@ export const PropertySearchPage: React.FC = () => {
                             {/* Results Header */}
                             <div className="text-center">
                                 <h2 className="text-2xl font-semibold text-gray-900 mb-2">
-                                    Search Results for "{activeQuery}"
+                                    Search Results for &ldquo;{activeQuery}&rdquo;
                                 </h2>
                             </div>
 

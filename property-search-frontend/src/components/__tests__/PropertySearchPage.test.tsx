@@ -1,7 +1,7 @@
 // Comprehensive PropertySearchPage Tests
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PropertySearchPage } from '../PropertySearchPage';
@@ -89,13 +89,16 @@ const createWrapper = (mockApiClient: any) => {
         },
     });
 
-    return ({ children }: { children: React.ReactNode }) => (
+    const TestWrapper = ({ children }: { children: React.ReactNode }) => (
         <QueryClientProvider client={queryClient}>
             <ApiProvider client={mockApiClient}>
                 {children}
             </ApiProvider>
         </QueryClientProvider>
     );
+    TestWrapper.displayName = 'TestWrapper';
+
+    return TestWrapper;
 };
 
 describe('PropertySearchPage', () => {

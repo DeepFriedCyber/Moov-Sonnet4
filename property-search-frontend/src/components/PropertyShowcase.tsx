@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { MapPin, Bed, Bath, Home } from 'lucide-react';
+import { MapPin, Bed, Bath } from 'lucide-react';
 import Image from 'next/image';
 
 const featuredProperties = [

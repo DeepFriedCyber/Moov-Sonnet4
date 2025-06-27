@@ -58,7 +58,7 @@ export class SemanticSearchService {
             });
 
             let embedding = params.embedding;
-            
+
             // Generate embedding if not provided
             if (!embedding && params.query) {
                 embedding = await this.generateEmbedding(params.query);
@@ -86,7 +86,7 @@ export class SemanticSearchService {
             }));
 
             const responseTime = Date.now() - startTime;
-            
+
             this.logger.info('Semantic search completed', {
                 resultCount: searchResults.length,
                 responseTime: `${responseTime}ms`,
@@ -110,7 +110,7 @@ export class SemanticSearchService {
         }
     }
 
-    private buildVectorQuery(params: SemanticSearchParams, embedding: number[]): { sql: string; params: any[] } {
+    private buildVectorQuery(params: SemanticSearchParams, embedding: number[]): { sql: string; params: unknown[] } {
         const similarityThreshold = params.similarityThreshold || this.DEFAULT_SIMILARITY_THRESHOLD;
         const limit = params.limit || this.DEFAULT_LIMIT;
         const offset = params.offset || 0;
@@ -132,7 +132,7 @@ export class SemanticSearchService {
             WHERE pe.combined_embedding <=> $1::vector < $2
         `;
 
-        const queryParams: any[] = [
+        const queryParams: unknown[] = [
             JSON.stringify(embedding),
             1 - similarityThreshold // Convert similarity to distance
         ];
@@ -195,16 +195,16 @@ export class SemanticSearchService {
 
         } catch (error) {
             this.logger.error('Embedding generation failed', {
-                error: error.message,
+                error: error instanceof Error ? error.message : 'Unknown error',
                 text: text.substring(0, 50)
             });
             throw new Error('Failed to generate embedding');
         }
     }
 
-    private calculateRelevanceScore(row: any): number {
+    private calculateRelevanceScore(row: Record<string, unknown>): number {
         // Calculate relevance based on multiple factors
-        let score = 1 - row.similarity_score; // Convert distance to similarity
+        let score = 1 - (row.similarity_score as number); // Convert distance to similarity
 
         // Boost score for certain property types or features
         if (row.property_type === 'house') {
@@ -212,7 +212,8 @@ export class SemanticSearchService {
         }
 
         // Boost newer properties
-        const propertyAge = Date.now() - new Date(row.created_at || Date.now()).getTime();
+        const createdAt = row.created_at ? new Date(row.created_at as string) : new Date();
+        const propertyAge = Date.now() - createdAt.getTime();
         const ageInDays = propertyAge / (1000 * 60 * 60 * 24);
         if (ageInDays < 30) {
             score *= 1.05;
@@ -224,7 +225,7 @@ export class SemanticSearchService {
 
     private calculateAverageSimilarity(results: SemanticSearchResult[]): string {
         if (results.length === 0) return '0.00';
-        
+
         const average = results.reduce((sum, result) => sum + (1 - result.similarity_score), 0) / results.length;
         return average.toFixed(2);
     }
@@ -241,7 +242,7 @@ export class SemanticSearchService {
 
         } catch (error) {
             this.logger.error('Batch embedding generation failed', {
-                error: error.message,
+                error: error instanceof Error ? error.message : 'Unknown error',
                 count: texts.length
             });
             throw error;
@@ -259,9 +260,9 @@ export class SemanticSearchService {
                 FROM property_embeddings pe
                 WHERE pe.property_id = $1
             `;
-            
+
             const embeddingResult = await connection.query(embeddingQuery, [propertyId]);
-            
+
             if (embeddingResult.rows.length === 0) {
                 throw new Error(`No embedding found for property ${propertyId}`);
             }

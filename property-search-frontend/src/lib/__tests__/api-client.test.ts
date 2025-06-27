@@ -1,5 +1,5 @@
 // Comprehensive API Client Tests
-import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
 import { setupServer } from 'msw/node';
 import { http, HttpResponse } from 'msw';
 import { ApiClient, ApiError } from '../api-client';
