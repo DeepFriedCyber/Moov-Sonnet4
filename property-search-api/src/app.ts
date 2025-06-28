@@ -1,10 +1,14 @@
 import express from 'express';
+import enhancedSearchRoutes from './routes/enhancedSearch';
 
 const app = express();
 
 // Basic middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Enhanced search routes with embedding integration
+app.use('/api/enhanced-search', enhancedSearchRoutes);
 
 // Basic health check route for testing
 app.get('/api/health', (req: express.Request, res: express.Response) => {
