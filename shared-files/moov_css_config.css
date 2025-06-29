@@ -1,0 +1,340 @@
+/* =============================================================================
+ * CSS MODULES & CONFIGURATION
+ * =============================================================================*/
+
+/* /src/components/PropertyCard/PropertyCard.module.css */
+.propertyCard {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 119, 0, 0.1);
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+  color: white;
+}
+
+.propertyCard:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 40px rgba(255, 119, 0, 0.1);
+  border-color: rgba(255, 119, 0, 0.3);
+}
+
+.relevanceBadge {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: linear-gradient(135deg, #ff7700, #ff9500);
+  color: white;
+  padding: 0.4rem 0.8rem;
+  border-radius: 15px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(255, 119, 0, 0.3);
+}
+
+.propertyImage {
+  width: 100%;
+  height: 200px;
+  background: linear-gradient(135deg, #333, #555);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.propertyContent {
+  padding: 1.5rem;
+}
+
+.propertyTitle {
+  color: white;
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  line-height: 1.3;
+}
+
+.propertyPrice {
+  color: #ff7700;
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.propertyDetails {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9rem;
+  flex-wrap: wrap;
+}
+
+.propertyLocation {
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.aiMatchReason {
+  background: linear-gradient(135deg, rgba(255, 119, 0, 0.08), rgba(255, 149, 0, 0.04));
+  border-radius: 8px;
+  padding: 0.8rem;
+  border-left: 2px solid #ff7700;
+}
+
+.matchReasonTitle {
+  font-size: 0.8rem;
+  color: #ff7700;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+
+.matchReasonText {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.4;
+}
+
+.matchKeywords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+}
+
+.keywordHighlight {
+  background: rgba(255, 119, 0, 0.2);
+  color: #ff9500;
+  padding: 0.2rem 0.5rem;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+/* /src/components/SearchForm/SearchForm.module.css */
+.searchSection {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border-radius: 24px;
+  padding: 2rem;
+  border: 1px solid rgba(255, 119, 0, 0.1);
+  margin-bottom: 2rem;
+  color: white;
+}
+
+.searchTitle {
+  font-size: 1.8rem;
+  color: white;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.searchSubtitle {
+  color: rgba(255, 255, 255, 0.7);
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.searchForm {
+  margin-bottom: 2rem;
+}
+
+.mainSearchContainer {
+  position: relative;
+  margin-bottom: 2rem;
+}
+
+.mainSearchInput {
+  width: 100%;
+  padding: 1.5rem 8rem 1.5rem 3rem;
+  font-size: 1.2rem;
+  border: 2px solid #ff7700;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #333;
+  box-shadow: 0 8px 32px rgba(255, 119, 0, 0.2);
+  transition: all 0.3s ease;
+  outline: none;
+}
+
+.mainSearchInput:focus {
+  transform: scale(1.01);
+  border-color: #ff9500;
+  box-shadow: 0 12px 48px rgba(255, 119, 0, 0.25);
+}
+
+.mainSearchInput::placeholder {
+  color: rgba(0, 0, 0, 0.5);
+}
+
+.searchIcon {
+  position: absolute;
+  left: 1.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #ff7700;
+  font-size: 1.5rem;
+}
+
+.aiIndicator {
+  position: absolute;
+  right: 6rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: linear-gradient(135deg, #ff7700, #ff9500);
+  color: white;
+  padding: 0.6rem 1.2rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  animation: pulse 2s infinite;
+}
+
+.searchBtn {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: linear-gradient(135deg, #ff7700, #ff9500);
+  color: white;
+  border: none;
+  border-radius: 15px;
+  padding: 1rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.searchBtn:hover {
+  background: linear-gradient(135deg, #ff9500, #ffb500);
+  transform: translateY(-52%);
+}
+
+.searchBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+.quickSuggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.suggestionChip {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.9);
+  padding: 0.8rem 1.5rem;
+  border-radius: 25px;
+  border: 1px solid rgba(255, 119, 0, 0.2);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.suggestionChip:hover {
+  background: rgba(255, 119, 0, 0.1);
+  border-color: #ff7700;
+  color: white;
+  transform: translateY(-2px);
+}
+
+/* /src/components/PropertyList/PropertyList.module.css */
+.propertyList {
+  margin-top: 2rem;
+}
+
+.propertiesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 3rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.loadingSpinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 119, 0, 0.3);
+  border-top: 3px solid #ff7700;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-right: 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loadMore {
+  display: flex;
+  justify-content: center;
+  margin: 3rem 0;
+}
+
+.loadMoreBtn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 119, 0, 0.3);
+  color: white;
+  padding: 1rem 2rem;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 600;
+}
+
+.loadMoreBtn:hover {
+  background: rgba(255, 119, 0, 0.1);
+  border-color: #ff7700;
+  transform: translateY(-2px);
+}
+
+.loadMoreBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .propertiesGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .mainSearchInput {
+    padding: 1.2rem 6rem 1.2rem 2.5rem;
+    font-size: 1rem;
+  }
+  
+  .quickSuggestions {
+    gap: 0.5rem;
+  }
+  
+  .suggestionChip {
+    padding: 0.6rem 1.2rem;
+    font-size: 0.8rem;
+  }
+}

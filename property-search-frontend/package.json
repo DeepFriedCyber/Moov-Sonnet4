@@ -12,7 +12,14 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest watch",
-    "test:env": "vitest run src/lib/env.test.ts"
+    "test:env": "vitest run src/lib/env.test.ts",
+    "test:tdd": "vitest run --reporter=verbose",
+    "test:tdd:watch": "vitest watch --reporter=verbose",
+    "test:tdd:coverage": "vitest run --coverage --reporter=verbose",
+    "test:semantic": "vitest run src/services/__tests__/semanticSearchService.test.ts src/hooks/__tests__/useSemanticSearch.test.tsx",
+    "test:components": "vitest run src/components/__tests__/",
+    "test:integration": "vitest run --testNamePattern='integration'",
+    "test:unit": "vitest run --testNamePattern='(?!integration)'"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.0",

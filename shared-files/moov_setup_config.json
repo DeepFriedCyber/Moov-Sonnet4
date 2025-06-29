@@ -1,0 +1,541 @@
+// =============================================================================
+// PACKAGE.JSON
+// =============================================================================
+
+{
+  "name": "moov-property-search",
+  "version": "1.0.0",
+  "description": "AI-powered property search platform",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:integration": "jest --testPathPattern=integration",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "^14.0.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "papaparse": "^5.4.1",
+    "gsap": "^3.12.2"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "@types/papaparse": "^5.3.14",
+    "@types/jest": "^29.5.0",
+    "@testing-library/react": "^14.0.0",
+    "@testing-library/jest-dom": "^6.1.0",
+    "@testing-library/user-event": "^14.5.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "typescript": "^5.0.0",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^14.0.0"
+  }
+}
+
+// =============================================================================
+// JEST.CONFIG.JS
+// =============================================================================
+
+const nextJest = require('next/jest')
+
+const createJestConfig = nextJest({
+  // Path to your Next.js app
+  dir: './',
+})
+
+// Custom Jest configuration
+const customJestConfig = {
+  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
+  testEnvironment: 'jest-environment-jsdom',
+  moduleNameMapping: {
+    '^@/(.*)$': '<rootDir>/src/$1',
+  },
+  collectCoverageFrom: [
+    'src/**/*.{js,jsx,ts,tsx}',
+    '!src/**/*.d.ts',
+    '!src/**/*.stories.{js,jsx,ts,tsx}',
+  ],
+  coverageThreshold: {
+    global: {
+      branches: 80,
+      functions: 80,
+      lines: 80,
+      statements: 80,
+    },
+  },
+  testMatch: [
+    '<rootDir>/src/**/__tests__/**/*.{js,jsx,ts,tsx}',
+    '<rootDir>/src/**/*.{test,spec}.{js,jsx,ts,tsx}',
+    '<rootDir>/tests/**/*.{test,spec}.{js,jsx,ts,tsx}',
+  ],
+  transform: {
+    '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }],
+  },
+  transformIgnorePatterns: [
+    '/node_modules/',
+    '^.+\\.module\\.(css|sass|scss)$',
+  ],
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
+}
+
+module.exports = createJestConfig(customJestConfig)
+
+// =============================================================================
+// TESTS/SETUP.TS
+// =============================================================================
+
+import '@testing-library/jest-dom'
+import { TextEncoder, TextDecoder } from 'util'
+
+// Polyfills for jsdom
+global.TextEncoder = TextEncoder
+global.TextDecoder = TextDecoder
+
+// Mock fetch globally
+global.fetch = jest.fn()
+
+// Mock intersection observer
+global.IntersectionObserver = jest.fn(() => ({
+  observe: jest.fn(),
+  disconnect: jest.fn(),
+  unobserve: jest.fn(),
+}))
+
+// Mock window.matchMedia
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: jest.fn().mockImplementation(query => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: jest.fn(),
+    removeListener: jest.fn(),
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    dispatchEvent: jest.fn(),
+  })),
+})
+
+// Mock GSAP
+jest.mock('gsap', () => ({
+  from: jest.fn(),
+  to: jest.fn(),
+  timeline: jest.fn(() => ({
+    from: jest.fn().mockReturnThis(),
+    to: jest.fn().mockReturnThis(),
+  })),
+}))
+
+// =============================================================================
+// TSCONFIG.JSON
+// =============================================================================
+
+{
+  "compilerOptions": {
+    "target": "es5",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}
+
+// =============================================================================
+// SRC/UTILS/TESTUTILS.TSX
+// =============================================================================
+
+import React from 'react'
+import { render, RenderOptions } from '@testing-library/react'
+
+// Custom render function that includes providers
+const AllTheProviders = ({ children }: { children: React.ReactNode }) => {
+  return (
+    <div data-testid="test-wrapper">
+      {children}
+    </div>
+  )
+}
+
+const customRender = (
+  ui: React.ReactElement,
+  options?: Omit<RenderOptions, 'wrapper'>
+) => render(ui, { wrapper: AllTheProviders, ...options })
+
+export * from '@testing-library/react'
+export { customRender as render }
+
+// Mock data factories for tests
+export const createMockProperty = (overrides = {}) => ({
+  id: '1',
+  address: '123 Test Street, Test Town, TS1 1AA',
+  pricePaid: 250000,
+  floorArea: 100,
+  pricePerSqMetre: 2500,
+  type: 'Detached' as const,
+  beds: 3,
+  tenure: 'Freehold',
+  lastSold: 'Mar 2025',
+  plotSize: 200,
+  ...overrides,
+})
+
+export const createMockSearchResults = (overrides = {}) => ({
+  properties: [createMockProperty()],
+  total: 1,
+  page: 1,
+  totalPages: 1,
+  filters: {},
+  searchTime: 150,
+  averageRelevance: 95,
+  ...overrides,
+})
+
+// =============================================================================
+// SRC/UTILS/FORMATTERS.TS
+// =============================================================================
+
+export const formatPrice = (price: number): string => {
+  return new Intl.NumberFormat('en-GB', {
+    style: 'currency',
+    currency: 'GBP',
+    maximumFractionDigits: 0
+  }).format(price)
+}
+
+export const formatArea = (area: number): string => {
+  return `${area} sq m`
+}
+
+export const formatPercentage = (value: number): string => {
+  return `${Math.round(value)}%`
+}
+
+export const getPropertyIcon = (type: string): string => {
+  const icons = {
+    'Detached': '🏡',
+    'Semi-D': '🏘️',
+    'Terrace': '🏠',
+    'Flat': '🏢',
+    'Detached Bungalow': '🏡',
+    'Semi-D Bungalow': '🏘️',
+    'Terrace Bungalow': '🏠',
+    'Other': '🏠'
+  }
+  return icons[type as keyof typeof icons] || '🏠'
+}
+
+// =============================================================================
+// TESTS/__MOCKS__/FILEMOCK.JS
+// =============================================================================
+
+module.exports = 'test-file-stub'
+
+// =============================================================================
+// .ESLINTRC.JSON
+// =============================================================================
+
+{
+  "extends": ["next/core-web-vitals"],
+  "rules": {
+    "@typescript-eslint/no-unused-vars": "error",
+    "@typescript-eslint/no-explicit-any": "warn",
+    "react-hooks/exhaustive-deps": "error"
+  }
+}
+
+// =============================================================================
+// SRC/COMPONENTS/PROPERTYSEARCHPAGE/PROPERTYSEARCHPAGE.TSX
+// =============================================================================
+
+import React, { useState } from 'react'
+import { SearchForm } from '../SearchForm/SearchForm'
+import { PropertyList } from '../PropertyList/PropertyList'
+import { usePropertySearch } from '@/hooks/usePropertySearch'
+import { SearchFilters, Property } from '@/types/property'
+import styles from './PropertySearchPage.module.css'
+
+export const PropertySearchPage: React.FC = () => {
+  const { searchResults, aiAnalysis, loading, error, search, loadMore } = usePropertySearch()
+  const [currentFilters, setCurrentFilters] = useState<SearchFilters>({})
+
+  const handleSearch = async (filters: SearchFilters) => {
+    setCurrentFilters(filters)
+    await search(filters)
+  }
+
+  const handlePropertyClick = (property: Property) => {
+    console.log('Property clicked:', property)
+    // Navigate to property detail page
+  }
+
+  const handleLoadMore = async () => {
+    await loadMore()
+  }
+
+  return (
+    <div className={styles.container}>
+      <header className={styles.header}>
+        <nav className={styles.nav}>
+          <a href="/" className={styles.logo}>Moov</a>
+          <div className={styles.navLinks}>
+            <a href="/" className={styles.navLink}>Home</a>
+            <a href="/search" className={styles.navLink + ' ' + styles.active}>Search</a>
+            <a href="/saved" className={styles.navLink}>Saved</a>
+            <a href="/alerts" className={styles.navLink}>Alerts</a>
+          </div>
+          <div className={styles.navActions}>
+            <button className={styles.btnOutline}>Sign In</button>
+            <button className={styles.btnPrimary}>Get Started</button>
+          </div>
+        </nav>
+      </header>
+
+      <main className={styles.main}>
+        <SearchForm 
+          onSearch={handleSearch}
+          loading={loading}
+          initialFilters={currentFilters}
+        />
+
+        {error && (
+          <div className={styles.error} data-testid="error-message">
+            {error}
+          </div>
+        )}
+
+        {aiAnalysis && (
+          <div className={styles.aiAnalysis} data-testid="ai-analysis">
+            <h3>🧠 AI Analysis</h3>
+            <p>{aiAnalysis.intent}</p>
+            {aiAnalysis.suggestions.length > 0 && (
+              <div className={styles.suggestions}>
+                <strong>Suggestions:</strong>
+                {aiAnalysis.suggestions.map((suggestion, index) => (
+                  <span key={index} className={styles.suggestionTag}>
+                    {suggestion}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {searchResults && (
+          <div className={styles.resultsSection}>
+            <div className={styles.resultsHeader}>
+              <h2>{searchResults.total} AI-Matched Properties</h2>
+              <div className={styles.statsInfo}>
+                Avg relevance <span className={styles.highlight}>{searchResults.averageRelevance}%</span> • 
+                Search time <span className={styles.highlight}>{searchResults.searchTime}ms</span>
+              </div>
+            </div>
+
+            <PropertyList
+              properties={searchResults.properties}
+              loading={loading}
+              onPropertyClick={handlePropertyClick}
+              onLoadMore={handleLoadMore}
+              hasMore={searchResults.page < searchResults.totalPages}
+            />
+          </div>
+        )}
+      </main>
+    </div>
+  )
+}
+
+// =============================================================================
+// SETUP INSTRUCTIONS
+// =============================================================================
+
+/*
+1. INSTALLATION & SETUP
+========================
+
+# Clone or create your project
+mkdir moov-property-search
+cd moov-property-search
+
+# Initialize package.json (copy from above)
+npm init -y
+
+# Install dependencies
+npm install next react react-dom papaparse gsap
+
+# Install dev dependencies  
+npm install -D @types/react @types/react-dom @types/papaparse @types/jest
+npm install -D @testing-library/react @testing-library/jest-dom @testing-library/user-event
+npm install -D jest jest-environment-jsdom typescript eslint eslint-config-next
+
+2. FILE STRUCTURE
+=================
+
+Create this exact structure:
+
+moov-property-search/
+├── public/
+│   └── data/
+│       └── search_results4.csv    # Your CSV file here
+├── src/
+│   ├── components/
+│   │   ├── PropertyCard/
+│   │   │   ├── PropertyCard.tsx
+│   │   │   ├── PropertyCard.module.css
+│   │   │   └── PropertyCard.test.tsx
+│   │   ├── SearchForm/
+│   │   │   ├── SearchForm.tsx
+│   │   │   ├── SearchForm.module.css
+│   │   │   └── SearchForm.test.tsx
+│   │   ├── PropertyList/
+│   │   │   ├── PropertyList.tsx
+│   │   │   ├── PropertyList.module.css
+│   │   │   └── PropertyList.test.tsx
+│   │   └── PropertySearchPage/
+│   │       ├── PropertySearchPage.tsx
+│   │       ├── PropertySearchPage.module.css
+│   │       └── PropertySearchPage.integration.test.tsx
+│   ├── hooks/
+│   │   ├── usePropertySearch.ts
+│   │   └── usePropertySearch.test.tsx
+│   ├── services/
+│   │   ├── propertyService.ts
+│   │   ├── propertyService.test.ts
+│   │   ├── aiService.ts
+│   │   └── aiService.test.ts
+│   ├── types/
+│   │   └── property.ts
+│   └── utils/
+│       ├── testUtils.tsx
+│       └── formatters.ts
+├── tests/
+│   ├── setup.ts
+│   └── __mocks__/
+│       └── fileMock.js
+├── pages/
+│   ├── index.tsx
+│   └── search.tsx
+├── jest.config.js
+├── tsconfig.json
+├── .eslintrc.json
+└── package.json
+
+3. TDD WORKFLOW
+===============
+
+# Start with failing tests
+npm run test:watch
+
+# Write minimal code to pass tests
+# Refactor while keeping tests green
+# Add more tests for edge cases
+
+# Run full test suite
+npm test
+
+# Check coverage
+npm run test:coverage
+
+# Integration tests
+npm run test:integration
+
+4. DEVELOPMENT COMMANDS
+=======================
+
+# Start development server
+npm run dev
+
+# Run tests in watch mode
+npm run test:watch
+
+# Build for production
+npm run build
+
+# Type checking
+npm run type-check
+
+# Lint code
+npm run lint
+
+5. NEXT.JS PAGES SETUP
+======================
+
+// pages/index.tsx
+import { PropertySearchPage } from '@/components/PropertySearchPage/PropertySearchPage'
+
+export default function Home() {
+  return <PropertySearchPage />
+}
+
+// pages/search.tsx
+import { PropertySearchPage } from '@/components/PropertySearchPage/PropertySearchPage'
+
+export default function Search() {
+  return <PropertySearchPage />
+}
+
+6. INTEGRATION WITH YOUR EXISTING PROJECT
+==========================================
+
+If you have an existing Next.js project:
+
+1. Copy the src/ folder structure into your project
+2. Update your package.json with the new dependencies
+3. Copy the configuration files (jest.config.js, etc.)
+4. Add the CSV file to public/data/
+5. Run npm install
+6. Start writing tests first, then implement features
+
+7. TESTING PHILOSOPHY
+=====================
+
+✅ Write tests FIRST (Red-Green-Refactor cycle)
+✅ Test behavior, not implementation
+✅ Unit tests for individual components/functions
+✅ Integration tests for user workflows
+✅ Mock external dependencies
+✅ Aim for 80%+ test coverage
+
+Example TDD workflow:
+1. Write failing test for PropertyCard component
+2. Implement minimal PropertyCard to pass test
+3. Refactor PropertyCard while keeping tests green
+4. Add more test cases for edge scenarios
+5. Repeat for next component
+
+This structure provides:
+- Type safety with TypeScript
+- Comprehensive testing with Jest & Testing Library
+- CSS Modules for styling
+- Real property data integration
+- AI semantic search functionality
+- Modern React patterns with hooks
+- Full TDD workflow support
+*/
