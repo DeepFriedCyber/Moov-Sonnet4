@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, HTTPException, Response, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
@@ -10,6 +10,12 @@ import numpy as np
 import redis
 import json
 import logging
+import time
+from datetime import datetime
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from services.embedding_cache import EmbeddingCache
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -37,10 +43,11 @@ class SearchResponse(BaseModel):
 # Global variables
 models = {}
 redis_client = None
+embedding_cache = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global models, redis_client
+    global models, redis_client, embedding_cache
 
     logger.info("Loading embedding models...")
 
@@ -64,6 +71,13 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Failed to connect to Redis: {e}")
     
+    # Initialize enhanced embedding cache
+    try:
+        embedding_cache = EmbeddingCache(redis_client, models["primary"])
+        logger.info("✅ Enhanced embedding cache initialized")
+    except Exception as e:
+        logger.error(f"Failed to initialize embedding cache: {e}")
+    
     yield
     
     # Cleanup on shutdown
@@ -72,8 +86,9 @@ async def lifespan(app: FastAPI):
         redis_client.close()
 
 app = FastAPI(
-    title="Property Embedding Service", 
-    version="1.0.0",
+    title="Enhanced Property Embedding Service", 
+    version="2.0.0",
+    description="High-performance embedding service with semantic clustering and cost optimization",
     lifespan=lifespan
 )
 
@@ -176,6 +191,73 @@ embedding_service_uptime_seconds {time.time()}
     
     return Response(content=metrics_text, media_type="text/plain")
 
+# Enhanced cache endpoints
+@app.get("/cache/stats")
+async def get_enhanced_cache_stats():
+    """Get comprehensive cache performance statistics"""
+    if not embedding_cache:
+        raise HTTPException(status_code=503, detail="Enhanced cache not available")
+    
+    try:
+        stats = embedding_cache.get_cache_stats()
+        stats["timestamp"] = datetime.now().isoformat()
+        return stats
+    except Exception as e:
+        logger.error(f"Error getting cache stats: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get cache stats: {str(e)}")
+
+@app.post("/cache/clear")
+async def clear_enhanced_cache():
+    """Clear enhanced cache (admin function)"""
+    if not embedding_cache:
+        raise HTTPException(status_code=503, detail="Enhanced cache not available")
+    
+    try:
+        embedding_cache.clear_cache()
+        logger.info("Enhanced cache cleared successfully")
+        return {"message": "Enhanced cache cleared successfully", "timestamp": datetime.now().isoformat()}
+    except Exception as e:
+        logger.error(f"Error clearing cache: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to clear cache: {str(e)}")
+
+@app.post("/cache/preload")
+async def preload_common_queries(background_tasks: BackgroundTasks):
+    """Preload common property search queries for better performance"""
+    if not embedding_cache:
+        raise HTTPException(status_code=503, detail="Enhanced cache not available")
+    
+    def preload_queries():
+        common_queries = [
+            # Property types
+            "luxury apartment London", "2 bedroom flat Manchester", "studio apartment Birmingham",
+            "3 bedroom house Leeds", "1 bedroom flat London", "family home with garden",
+            
+            # Location-based
+            "apartment central London", "flat near tube station", "house with parking",
+            "property near schools", "flat with balcony", "house with garden",
+            
+            # Price-based
+            "budget apartment London", "luxury penthouse", "affordable flat Manchester",
+            "premium apartment Birmingham", "cheap studio London", "expensive house Leeds",
+            
+            # Feature-based
+            "apartment with gym", "flat with concierge", "house with garage",
+            "property with garden", "apartment with view", "flat near transport"
+        ]
+        
+        logger.info(f"Preloading {len(common_queries)} common queries...")
+        
+        for query in common_queries:
+            try:
+                embedding_cache.get_or_generate(query)
+            except Exception as e:
+                logger.warning(f"Failed to preload query '{query}': {e}")
+        
+        logger.info("Query preloading completed")
+    
+    background_tasks.add_task(preload_queries)
+    return {"message": "Query preloading started", "queries_count": 24}
+
 @app.post("/embed", response_model=EmbeddingResponse)
 async def create_embeddings(request: EmbeddingRequest):
     try:
@@ -183,21 +265,25 @@ async def create_embeddings(request: EmbeddingRequest):
         model_name = request.model if request.model and request.model in models else "primary"
         model = models[model_name]
 
-        # Generate embeddings
-        embeddings = model.encode(request.texts)
+        # Use enhanced caching for single queries, direct model for batch
+        if len(request.texts) == 1 and embedding_cache:
+            # Single query - use enhanced cache with semantic clustering
+            embedding = embedding_cache.get_or_generate(request.texts[0])
+            embeddings_list = [embedding.tolist()]
+        else:
+            # Batch queries - use direct model encoding
+            embeddings = model.encode(request.texts)
+            embeddings_list = [embedding.tolist() for embedding in embeddings]
 
-        # Convert to list for JSON serialization
-        embeddings_list = [embedding.tolist() for embedding in embeddings]
-
-        # Cache embeddings if Redis is available
-        if redis_client:
-            for i, text in enumerate(request.texts):
-                cache_key = f"embedding:{hash(text)}:{model_name}"
-                redis_client.setex(
-                    cache_key, 
-                    3600,  # 1 hour TTL
-                    json.dumps(embeddings_list[i])
-                )
+            # Cache individual embeddings if Redis is available
+            if redis_client:
+                for i, text in enumerate(request.texts):
+                    cache_key = f"embedding:{hash(text)}:{model_name}"
+                    redis_client.setex(
+                        cache_key, 
+                        3600,  # 1 hour TTL
+                        json.dumps(embeddings_list[i])
+                    )
 
         return EmbeddingResponse(
             embeddings=embeddings_list,

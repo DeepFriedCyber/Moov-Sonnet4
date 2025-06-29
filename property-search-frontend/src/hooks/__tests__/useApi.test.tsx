@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { usePropertySearch, useProperty, useCreateProperty, ApiProvider } from '../useApi';
-import { ApiClient } from '@/lib/api-client';
+import { IApiClient } from '@/lib/api-client';
 import React from 'react';
 
 // Mock the API client
@@ -18,7 +18,7 @@ describe('API Hooks', () => {
             },
         });
 
-        const mockApiClient: ApiClient = {
+        const mockApiClient: IApiClient = {
             searchProperties: vi.fn(),
             getProperty: vi.fn(),
             createProperty: vi.fn(),
@@ -26,7 +26,7 @@ describe('API Hooks', () => {
             deleteProperty: vi.fn(),
             healthCheck: vi.fn(),
             setAuthToken: vi.fn(),
-        } as ApiClient;
+        };
 
         const wrapper = ({ children }: { children: React.ReactNode }) => (
             <QueryClientProvider client={queryClient}>
@@ -155,6 +155,7 @@ describe('API Hooks', () => {
                     field: 'price' as const,
                     order: 'asc' as const,
                 },
+                enabled: true,
             };
 
             mockApiClient.searchProperties.mockResolvedValueOnce({
@@ -173,7 +174,17 @@ describe('API Hooks', () => {
 
             // Wait for the call to be made
             await waitFor(() => {
-                expect(mockApiClient.searchProperties).toHaveBeenCalledWith(searchOptions);
+                expect(mockApiClient.searchProperties).toHaveBeenCalledWith({
+                    query: 'modern flat',
+                    filters: {
+                        maxPrice: 500000,
+                        minBedrooms: 2,
+                    },
+                    sort: {
+                        field: 'price',
+                        order: 'asc',
+                    },
+                });
             });
         });
     });

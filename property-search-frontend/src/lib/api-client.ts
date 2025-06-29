@@ -61,8 +61,19 @@ const DEFAULT_HEADERS = {
 const NETWORK_ERROR_MESSAGE = 'Network error';
 const TIMEOUT_ERROR_MESSAGE = 'Request timeout';
 
+// API Client Interface (for testing and type safety)
+export interface IApiClient {
+    searchProperties(options: SearchOptions): Promise<PropertySearchResult>;
+    getProperty(id: string): Promise<Property>;
+    createProperty(data: Omit<Property, 'id' | 'createdAt' | 'updatedAt'>): Promise<Property>;
+    updateProperty(id: string, data: Partial<Omit<Property, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Property>;
+    deleteProperty(id: string): Promise<void>;
+    healthCheck(): Promise<{ status: string; timestamp: string }>;
+    setAuthToken(token: string | null): void;
+}
+
 // Main API Client
-export class ApiClient {
+export class ApiClient implements IApiClient {
     private readonly client: AxiosInstance;
     private readonly config: Required<ApiClientConfig>;
 

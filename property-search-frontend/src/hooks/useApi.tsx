@@ -9,7 +9,7 @@ import {
   UseQueryOptions,
   UseMutationOptions
 } from '@tanstack/react-query';
-import { ApiClient, ApiError, PropertySearchResult, SearchOptions } from '@/lib/api-client';
+import { ApiClient, IApiClient, ApiError, PropertySearchResult, SearchOptions } from '@/lib/api-client';
 import { useAuthenticatedApiClient } from './useAuth';
 import { Property } from '@/types';
 
@@ -18,7 +18,7 @@ type PropertyCreateData = Omit<Property, 'id' | 'createdAt' | 'updatedAt'>;
 type PropertyUpdateData = Partial<Omit<Property, 'id' | 'createdAt' | 'updatedAt'>>;
 
 interface ApiContextValue {
-  client: ApiClient;
+  client: IApiClient;
 }
 
 // Context
@@ -26,7 +26,7 @@ const ApiContext = createContext<ApiContextValue | null>(null);
 
 // Provider
 interface ApiProviderProps {
-  client: ApiClient;
+  client: IApiClient;
   children: ReactNode;
 }
 
@@ -41,7 +41,7 @@ export const ApiProvider = ({ client, children }: ApiProviderProps) => {
 };
 
 // Hook to access API client
-const useApiClient = (): ApiClient => {
+const useApiClient = (): IApiClient => {
   const context = useContext(ApiContext);
   if (!context) {
     throw new Error('useApiClient must be used within ApiProvider');
@@ -50,7 +50,7 @@ const useApiClient = (): ApiClient => {
 };
 
 // Enhanced hook that prefers authenticated client when available
-export const useApiClientEnhanced = (): ApiClient => {
+export const useApiClientEnhanced = (): IApiClient => {
   const authenticatedClient = useAuthenticatedApiClient();
   const context = useContext(ApiContext);
 

@@ -1,5 +1,8 @@
 // Re-export types from the shared package
-export * from '../../../../property-search-types/src/index';
+export * from '@shared/types';
+
+// Import Property type for reference
+import type { Property } from '@shared/types';
 
 // Additional frontend-specific types
 export interface SearchOptions {
@@ -24,6 +27,3 @@ export interface SearchOptions {
     limit: number;
   };
 }
-
-// Import Property type for reference
-import type { Property } from '../../../../property-search-types/src/index';

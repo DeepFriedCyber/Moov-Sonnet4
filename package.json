@@ -60,6 +60,7 @@
   },
   "workspaces": [
     "property-search-api",
-    "property-search-frontend"
+    "property-search-frontend",
+    "property-search-types"
   ]
 }
