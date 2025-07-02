@@ -99,7 +99,7 @@ export class IndexOptimizedPropertyService {
       WHERE p.available = true
     `;
 
-        let conditions: string[] = [];
+        const conditions: string[] = [];
 
         // Full-text search using GIN index
         if (params.query) {
@@ -164,7 +164,7 @@ export class IndexOptimizedPropertyService {
       WHERE p.available = true
     `;
 
-        let conditions: string[] = [];
+        const conditions: string[] = [];
 
         // Full-text search
         if (params.query) {

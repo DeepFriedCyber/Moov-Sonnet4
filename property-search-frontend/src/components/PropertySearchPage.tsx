@@ -4,6 +4,7 @@
 import React, { useState } from 'react';
 import { usePropertySearch } from '@/hooks/useApi';
 import { SearchBar } from './SearchBar';
+import { PropertyCard } from './PropertyCard';
 import { Property } from '@/types';
 import { AlertCircle, Search, MapPin, Bed, Bath, Square, Pound } from 'lucide-react';
 import Image from 'next/image';
@@ -16,91 +17,7 @@ const EXAMPLE_SEARCHES = [
     'Family home with garden',
 ];
 
-interface PropertyCardProps {
-    property: Property & { similarity_score?: number };
-    onPropertyClick?: (property: Property) => void;
-}
 
-const PropertyCard: React.FC<PropertyCardProps> = ({ property, onPropertyClick }) => {
-    return (
-        <div
-            className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
-            onClick={() => onPropertyClick?.(property)}
-        >
-            {/* Property Image */}
-            <div className="h-48 bg-gray-200 flex items-center justify-center">
-                {property.images.length > 0 ? (
-                    <Image
-                        src={property.images[0]}
-                        alt={property.title}
-                        width={400}
-                        height={200}
-                        className="w-full h-full object-cover"
-                    />
-                ) : (
-                    <div className="text-gray-400">No image available</div>
-                )}
-            </div>
-
-            {/* Property Details */}
-            <div className="p-4">
-                <div className="flex justify-between items-start mb-2">
-                    <h3 className="text-lg font-semibold line-clamp-2">{property.title}</h3>
-                    {property.similarity_score && (
-                        <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full ml-2">
-                            {Math.round(property.similarity_score * 100)}% match
-                        </span>
-                    )}
-                </div>
-
-                <p className="text-gray-600 text-sm mb-3 line-clamp-2">{property.description}</p>
-
-                {/* Price */}
-                <div className="flex items-center mb-3">
-                    <Pound className="w-4 h-4 text-green-600 mr-1" />
-                    <span className="text-xl font-bold text-green-600">
-                        {property.price.toLocaleString()}
-                    </span>
-                    <span className="text-gray-500 ml-1">
-                        {property.listingType === 'rent' ? '/month' : ''}
-                    </span>
-                </div>
-
-                {/* Property Features */}
-                <div className="flex items-center gap-4 mb-3 text-sm text-gray-600">
-                    <div className="flex items-center">
-                        <Bed className="w-4 h-4 mr-1" />
-                        <span>{property.bedrooms} bed</span>
-                    </div>
-                    <div className="flex items-center">
-                        <Bath className="w-4 h-4 mr-1" />
-                        <span>{property.bathrooms} bath</span>
-                    </div>
-                    <div className="flex items-center">
-                        <Square className="w-4 h-4 mr-1" />
-                        <span>{property.area} sq ft</span>
-                    </div>
-                </div>
-
-                {/* Location */}
-                <div className="flex items-center text-sm text-gray-600">
-                    <MapPin className="w-4 h-4 mr-1" />
-                    <span>{property.location.area}, {property.location.city}</span>
-                </div>
-
-                {/* Property Type & Listing Type */}
-                <div className="flex gap-2 mt-3">
-                    <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full capitalize">
-                        {property.propertyType}
-                    </span>
-                    <span className="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full capitalize">
-                        For {property.listingType}
-                    </span>
-                </div>
-            </div>
-        </div>
-    );
-};
 
 interface ExampleSearchesProps {
     examples: string[];
@@ -349,7 +266,9 @@ export const PropertySearchPage: React.FC = () => {
                                                 <PropertyCard
                                                     key={property.id}
                                                     property={property}
-                                                    onPropertyClick={handlePropertyClick}
+                                                    onClick={handlePropertyClick}
+                                                    onFavorite={(id) => console.log('Favorite:', id)}
+                                                    showSemanticScore={true}
                                                 />
                                             ))}
                                         </div>

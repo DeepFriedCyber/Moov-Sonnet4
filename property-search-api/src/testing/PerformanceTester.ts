@@ -457,8 +457,8 @@ export class PerformanceTester {
         let successfulAcquisitions = 0;
         let failedAcquisitions = 0;
         const acquisitionTimes: number[] = [];
-        let maxPoolSize = 0;
-        let connectionLeaks = 0;
+        const maxPoolSize = 0;
+        const connectionLeaks = 0;
 
         const startTime = Date.now();
         const promises: Promise<void>[] = [];
