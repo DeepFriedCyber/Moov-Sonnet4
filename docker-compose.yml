@@ -5,9 +5,9 @@ services:
     image: postgres:15-alpine
     container_name: moov-postgres
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-moov}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-moov123}
-      POSTGRES_DB: ${POSTGRES_DB:-moov_db}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
     ports:
       - "5432:5432"
@@ -16,7 +16,7 @@ services:
       - ./property-search-api/migrations:/docker-entrypoint-initdb.d
       - ./logs/postgres:/var/log/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-moov} -d ${POSTGRES_DB:-moov_db}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -51,11 +51,11 @@ services:
       - "8000:8000"
     environment:
       - NODE_ENV=${NODE_ENV:-development}
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-moov}:${POSTGRES_PASSWORD:-moov123}@postgres:5432/${POSTGRES_DB:-moov_db}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       - REDIS_URL=redis://redis:6379
       - EMBEDDING_SERVICE_URL=http://embedding-service:8001
-      - JWT_SECRET=${JWT_SECRET:-dev_jwt_secret_fallback_12345678901234567890}
-      - FRONTEND_URL=http://localhost:3000
+      - JWT_SECRET=${JWT_SECRET}
+      - FRONTEND_URL=${FRONTEND_URL}
     depends_on:
       postgres:
         condition: service_healthy

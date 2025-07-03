@@ -7,6 +7,8 @@ const nextConfig = {
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
   },
+  // Enable standalone output for production Docker builds
+  output: process.env.NODE_ENV === 'production' ? 'standalone' : undefined,
 }
 
 module.exports = nextConfig

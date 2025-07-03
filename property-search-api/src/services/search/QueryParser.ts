@@ -148,7 +148,7 @@ export class QueryParser {
     // Handle comma and "and" separated lists if no proximity found
     if (nearBy.length === 0) {
       const listPatterns = [
-        /near\s+(.+?)or|in|on|at|to|from|by|of|that|which|where|when|while|safe|secure|quiet|peaceful)|\s*[.]|$)/i,
+        /near\s+(.+?)(?:\s+(?:with|for|in|on|at|to|from|by|of|that|which|where|when|while|safe|secure|quiet|peaceful)|\s*[.]|$)/i,
         /close\s+to\s+(.+?)(?:\s+(?:with|for|in|on|at|to|from|by|of|that|which|where|when|while|safe|secure|quiet|peaceful)|\s*[.]|$)/i,
         /close\s+to\s+(.+?)(?:\s+(?:with|for|in|on|at|to|from|by|of|that|which|where|when|while|safe|secure|quiet|peaceful)|\s*[.]|$)/i,
         /walking\s+distance\s+to\s+(.+?)(?:\s+(?:with|for|in|on|at|to|from|by|of|that|which|where|when|while|safe|secure|quiet|peaceful)|\s*[.]|$)/i,

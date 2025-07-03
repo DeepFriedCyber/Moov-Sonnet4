@@ -1,0 +1,74 @@
+name: Security Checks
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    name: Security Vulnerability Scan
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for hardcoded secrets
+        run: |
+          echo "🔍 Checking for hardcoded secrets in docker-compose.yml..."
+          bash test_for_hardcoded_secrets.sh
+
+      - name: Verify .env is gitignored
+        run: |
+          echo "🔍 Checking if .env is properly gitignored..."
+          if grep -q "^\.env$" .gitignore; then
+            echo "✅ PASS: .env is properly gitignored"
+          else
+            echo "❌ FAIL: .env is not in .gitignore"
+            exit 1
+          fi
+
+      - name: Check for .env.example
+        run: |
+          echo "🔍 Checking if .env.example exists..."
+          if [ -f ".env.example" ]; then
+            echo "✅ PASS: .env.example exists"
+          else
+            echo "❌ FAIL: .env.example is missing"
+            exit 1
+          fi
+
+      - name: Validate docker-compose configuration
+        run: |
+          echo "🔍 Validating docker-compose.yml syntax..."
+          # Create a minimal .env for validation
+          echo "POSTGRES_USER=test" > .env.test
+          echo "POSTGRES_PASSWORD=test" >> .env.test
+          echo "POSTGRES_DB=test" >> .env.test
+          echo "JWT_SECRET=test_jwt_secret_for_validation_only" >> .env.test
+          echo "MAPTILER_API_KEY=test" >> .env.test
+
+          # Validate docker-compose with test env
+          docker-compose --env-file .env.test config > /dev/null
+          echo "✅ PASS: docker-compose.yml is valid"
+
+          # Clean up
+          rm .env.test
+
+  secret-detection:
+    runs-on: ubuntu-latest
+    name: Advanced Secret Detection
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run TruffleHog OSS
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+          extra_args: --debug --only-verified

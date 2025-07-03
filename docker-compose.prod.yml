@@ -1,0 +1,97 @@
+# Production Docker Compose Override
+# This file overrides the base docker-compose.yml for production builds.
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up
+
+version: '3.8'
+
+services:
+  # ==========================================
+  # 🔧 API Service - Production Build
+  # ==========================================
+  api:
+    build:
+      context: ./property-search-api
+      # Use the specific production Dockerfile
+      dockerfile: Dockerfile.prod
+    # UNSET the volumes to ensure the image is immutable
+    # An empty volumes array removes the mounts from the base file.
+    volumes: []
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - REDIS_URL=redis://redis:6379
+      - EMBEDDING_SERVICE_URL=http://embedding-service:8001
+      - JWT_SECRET=${JWT_SECRET}
+      - FRONTEND_URL=${FRONTEND_URL}
+
+  # ==========================================
+  # 🤖 Embedding Service - Production Build
+  # ==========================================
+  embedding-service:
+    build:
+      context: ./property-embedding-service
+      # Use the specific production Dockerfile
+      dockerfile: Dockerfile.prod
+    # Remove development volume mounts for immutable production image
+    volumes: []
+    environment:
+      - PYTHONPATH=/app/src
+      - ENVIRONMENT=production
+
+  # ==========================================
+  # 🌐 Frontend Service - Production Build
+  # ==========================================
+  frontend:
+    build:
+      context: ./property-search-frontend
+      # Use the specific production Dockerfile
+      dockerfile: Dockerfile.prod
+      args:
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+        - NEXT_PUBLIC_EMBEDDING_SERVICE_URL=${NEXT_PUBLIC_EMBEDDING_SERVICE_URL:-http://localhost:8001}
+        - NEXT_PUBLIC_MAPTILER_KEY=${MAPTILER_API_KEY}
+    # Remove development volume mounts for immutable production image
+    volumes: []
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      - NEXT_PUBLIC_EMBEDDING_SERVICE_URL=${NEXT_PUBLIC_EMBEDDING_SERVICE_URL:-http://localhost:8001}
+      - NEXT_PUBLIC_MAPTILER_KEY=${MAPTILER_API_KEY}
+
+  # ==========================================
+  # 🗄️ Database - Production Configuration
+  # ==========================================
+  postgres:
+    # Use production-optimized PostgreSQL settings
+    command: >
+      postgres
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      # Production-specific PostgreSQL settings
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8 --data-checksums"
+
+  # ==========================================
+  # 🔄 Redis - Production Configuration
+  # ==========================================
+  redis:
+    # Use production-optimized Redis settings
+    command: >
+      redis-server
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+      --appendonly yes
+      --appendfsync everysec

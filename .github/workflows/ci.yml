@@ -2,13 +2,13 @@ name: 🚀 CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
 
 env:
-  NODE_VERSION: '18'
-  PYTHON_VERSION: '3.9'
+  NODE_VERSION: "18"
+  PYTHON_VERSION: "3.9"
 
 jobs:
   # ==========================================
@@ -25,7 +25,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
 
       - name: 📦 Install Dependencies
         run: npm ci
@@ -41,6 +41,16 @@ jobs:
       - name: 📝 Type Check
         run: npm run type-check
         continue-on-error: true
+
+      - name: 🔒 Check for Hardcoded Secrets
+        run: |
+          if grep -E 'POSTGRES_PASSWORD:-|JWT_SECRET:-' docker-compose.yml; then
+            echo "❌ FAIL: Found hardcoded secret fallbacks in docker-compose.yml."
+            echo "🛡️ Security Issue: Secrets should come from environment variables only."
+            exit 1
+          else
+            echo "✅ PASS: No hardcoded secret fallbacks found."
+          fi
 
   # ==========================================
   # 🏗️ Frontend Build & Test
@@ -60,7 +70,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
           cache-dependency-path: property-search-frontend/package-lock.json
 
       - name: 📦 Install Dependencies
@@ -130,7 +140,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
           cache-dependency-path: property-search-api/package-lock.json
 
       - name: 📦 Install Dependencies
@@ -177,7 +187,7 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
+          cache: "pip"
 
       - name: 📦 Install Dependencies
         run: |
@@ -213,6 +223,7 @@ jobs:
     name: 🐳 Docker Build Test
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [code-quality] # Ensure security checks pass first
 
     steps:
       - name: 📦 Checkout Code
@@ -252,7 +263,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
 
       - name: 📦 Install Dependencies
         working-directory: ./property-search-frontend

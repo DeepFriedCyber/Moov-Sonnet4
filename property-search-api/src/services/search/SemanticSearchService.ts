@@ -1,5 +1,7 @@
 import { QueryParser } from './QueryParser';
 import { SearchQuery, SearchResult, PropertyMatch, SearchFacets } from '@/types/search';
+import { Logger } from '@/types/logger';
+import { CACHE_TTL_SECONDS, SEARCH_RESULT_LIMIT, rankingWeights } from '@/config';
 
 interface DatabaseService {
   query(sql: string, params: any[]): Promise<any[]>;
@@ -14,29 +16,38 @@ interface CacheService {
   set(key: string, value: any, ttl: number): Promise<void>;
 }
 
+
+
 export class SemanticSearchService {
   constructor(
     private db: DatabaseService,
     private embedding: EmbeddingService,
     private cache: CacheService,
-    private queryParser: QueryParser
-  ) {}
+    private queryParser: QueryParser,
+    private logger: Logger // Inject the logger
+  ) { }
 
   async search(query: string, filters?: any): Promise<SearchResult> {
-    // Check cache first
+    // Check cache first (handle cache errors gracefully)
     const cacheKey = this.generateCacheKey(query, filters);
-    const cached = await this.cache.get(cacheKey);
-    if (cached) return cached;
+    let cached;
+    try {
+      cached = await this.cache.get(cacheKey);
+      if (cached) return cached;
+    } catch (error) {
+      // Cache error - continue without cache
+      console.warn('Cache get error:', error);
+    }
 
     // Parse the natural language query
     const parsedQuery = this.queryParser.parse(query);
-    
+
     // Generate embedding for semantic search
     const queryEmbedding = await this.embedding.generateEmbedding(query);
-    
+
     // Build the search query
     const searchParams = this.buildSearchParams(parsedQuery, filters);
-    
+
     // Execute semantic search
     const properties = await this.executeSemanticSearch(
       queryEmbedding,
@@ -61,8 +72,14 @@ export class SemanticSearchService {
       facets,
     };
 
-    await this.cache.set(cacheKey, result, 300); // 5 minute cache
-    
+    // Cache the results (handle cache errors gracefully)
+    try {
+      await this.cache.set(cacheKey, result, CACHE_TTL_SECONDS);
+    } catch (error) {
+      // Cache error - continue without caching
+      console.warn('Cache set error:', error);
+    }
+
     return result;
   }
 
@@ -129,7 +146,7 @@ export class SemanticSearchService {
       FROM properties p
       WHERE ${conditions.join(' AND ')}
       ORDER BY distance
-      LIMIT 50
+      LIMIT ${SEARCH_RESULT_LIMIT}
     `;
 
     const results = await this.db.query(sql, queryParams);
@@ -141,15 +158,25 @@ export class SemanticSearchService {
     parsedQuery: any,
     queryEmbedding: number[]
   ): Promise<PropertyMatch[]> {
-    // Multi-factor ranking
+    // Multi-factor ranking using configurable weights
     return properties.map(property => {
-      let score = property.similarity_score * 0.5; // Base semantic score
+      const initialScore = property.similarity_score;
+      let score = initialScore * rankingWeights.baseScore; // Base semantic score
+
+      // Track individual boosts for debugging
+      const boosts: Record<string, number> = {
+        baseScore: initialScore * rankingWeights.baseScore
+      };
 
       // Location relevance
       if (parsedQuery.location) {
-        if (property.city === parsedQuery.location.city) score += 0.1;
+        if (property.city === parsedQuery.location.city) {
+          boosts.cityMatch = rankingWeights.cityMatch;
+          score += rankingWeights.cityMatch;
+        }
         if (property.postcode?.startsWith(parsedQuery.location.postcode?.substring(0, 3))) {
-          score += 0.05;
+          boosts.postcodePrefixMatch = rankingWeights.postcodePrefixMatch;
+          score += rankingWeights.postcodePrefixMatch;
         }
       }
 
@@ -157,38 +184,72 @@ export class SemanticSearchService {
       const matchedFeatures = parsedQuery.features.filter(
         (feature: string) => property.features.includes(feature)
       );
-      score += matchedFeatures.length * 0.05;
+      if (matchedFeatures.length > 0) {
+        boosts.featureMatch = matchedFeatures.length * rankingWeights.featureMatch;
+        boosts.matchedFeatures = matchedFeatures;
+        score += boosts.featureMatch;
+      }
 
       // Price relevance
       if (parsedQuery.budget) {
-        const priceInRange = 
+        const priceInRange =
           property.price >= (parsedQuery.budget.minPrice || 0) &&
           property.price <= (parsedQuery.budget.maxPrice || Infinity);
-        if (priceInRange) score += 0.1;
+        if (priceInRange) {
+          boosts.priceInRange = rankingWeights.priceInRange;
+          score += rankingWeights.priceInRange;
+        }
       }
 
       // Room matching
       if (parsedQuery.rooms.bedrooms && property.bedrooms >= parsedQuery.rooms.bedrooms) {
-        score += 0.05;
+        boosts.bedroomMatch = rankingWeights.bedroomMatch;
+        score += rankingWeights.bedroomMatch;
       }
       if (parsedQuery.rooms.bathrooms && property.bathrooms >= parsedQuery.rooms.bathrooms) {
-        score += 0.05;
+        boosts.bathroomMatch = rankingWeights.bathroomMatch;
+        score += rankingWeights.bathroomMatch;
       }
 
       // Property type matching
       if (parsedQuery.propertyType && property.propertyType === parsedQuery.propertyType) {
-        score += 0.1;
+        boosts.propertyTypeMatch = rankingWeights.propertyTypeMatch;
+        score += rankingWeights.propertyTypeMatch;
       }
 
       // Freshness boost
-      const daysSinceListed = 
+      const daysSinceListed =
         (Date.now() - new Date(property.listedDate).getTime()) / (1000 * 60 * 60 * 24);
-      if (daysSinceListed < 7) score += 0.05;
-      if (daysSinceListed < 1) score += 0.05;
+      if (daysSinceListed < 7) {
+        boosts.freshnessBoost = rankingWeights.freshnessBoost;
+        score += rankingWeights.freshnessBoost;
+      }
+      if (daysSinceListed < 1) {
+        boosts.superFreshnessBoost = rankingWeights.superFreshnessBoost;
+        score += rankingWeights.superFreshnessBoost;
+      }
+
+      const finalScore = Math.min(score, 1);
+
+      // Log detailed ranking information for debugging
+      this.logger.debug(`Re-ranking property ID: ${property.id}`, {
+        propertyId: property.id,
+        initialScore,
+        finalScore,
+        boosts,
+        property: {
+          id: property.id,
+          title: property.title,
+          city: property.city,
+          price: property.price,
+          features: property.features,
+          daysSinceListed: Math.round(daysSinceListed * 10) / 10
+        }
+      });
 
       return {
         ...property,
-        relevanceScore: Math.min(score, 1),
+        relevanceScore: finalScore,
       };
     }).sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
   }
