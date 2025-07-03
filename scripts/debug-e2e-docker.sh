@@ -87,11 +87,11 @@ test_endpoint() {
     fi
 }
 
-test_endpoint "http://localhost:5432" "PostgreSQL"
-test_endpoint "http://localhost:6379" "Redis"
+test_endpoint "http://localhost:5433" "PostgreSQL"
+test_endpoint "http://localhost:6380" "Redis"
 test_endpoint "http://localhost:3001/health" "API Health"
 test_endpoint "http://localhost:8001/health" "AI Service Health"
-test_endpoint "http://localhost:3000" "Frontend"
+test_endpoint "http://localhost:3002" "Frontend"
 
 echo ""
 echo "🔍 Network Information:"
@@ -104,7 +104,7 @@ docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsa
 echo ""
 echo "🔍 Port Information:"
 echo "Checking if ports are available..."
-for port in 3000 3001 5432 6379 8001; do
+for port in 3002 3001 5433 6380 8001; do
     if netstat -tuln 2>/dev/null | grep -q ":$port "; then
         echo "Port $port: ✅ In use"
     else
@@ -126,20 +126,20 @@ echo "CI: ${CI:-not set}"
 echo "GITHUB_ACTIONS: ${GITHUB_ACTIONS:-not set}"
 
 # If all services are healthy, try running a simple test
-if test_endpoint "http://localhost:3000" "Frontend" && test_endpoint "http://localhost:3001/health" "API"; then
+if test_endpoint "http://localhost:3002" "Frontend" && test_endpoint "http://localhost:3001/health" "API"; then
     echo ""
     echo "🧪 Services appear healthy. You can now run E2E tests with:"
     echo "   cd property-search-frontend"
-    echo "   PLAYWRIGHT_BASE_URL=http://localhost:3000 npm run test:e2e"
+    echo "   PLAYWRIGHT_BASE_URL=http://localhost:3002 npm run test:e2e"
     echo ""
     echo "Or run a single test with:"
-    echo "   PLAYWRIGHT_BASE_URL=http://localhost:3000 npx playwright test search.spec.ts --headed"
+    echo "   PLAYWRIGHT_BASE_URL=http://localhost:3002 npx playwright test search.spec.ts --headed"
 else
     echo ""
     echo "❌ Some services are not healthy. Check the logs above for errors."
     echo ""
     echo "Common issues to check:"
-    echo "1. Port conflicts (check if ports 3000, 3001, 5432, 6379, 8001 are free)"
+    echo "1. Port conflicts (check if ports 3002, 3001, 5433, 6380, 8001 are free)"
     echo "2. Docker daemon running"
     echo "3. Sufficient memory and disk space"
     echo "4. Network connectivity"
