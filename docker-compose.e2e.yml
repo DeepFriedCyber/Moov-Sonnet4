@@ -1,0 +1,110 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: e2e-postgres
+    environment:
+      POSTGRES_USER: moov
+      POSTGRES_PASSWORD: moov123
+      POSTGRES_DB: moov_db
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./property-search-api/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U moov -d moov_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - e2e-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: e2e-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - e2e-network
+
+  api:
+    build: 
+      context: ./property-search-api
+      dockerfile: Dockerfile
+    container_name: e2e-api
+    ports:
+      - "3001:3001"  # Use port 3001 for E2E tests to match test expectations
+    environment:
+      - NODE_ENV=test
+      - DATABASE_URL=postgresql://moov:moov123@postgres:5432/moov_db
+      - REDIS_URL=redis://redis:6379
+      - EMBEDDING_SERVICE_URL=http://embedding-service:8001
+      - JWT_SECRET=a_test_secret_for_ci_that_is_long_enough
+      - PORT=3001
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - e2e-network
+
+  embedding-service:
+    build:
+      context: ./property-embedding-service
+      dockerfile: Dockerfile
+    container_name: e2e-embedding
+    ports:
+      - "8001:8001"
+    environment:
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - e2e-network
+
+  frontend:
+    build:
+      context: ./property-search-frontend
+      dockerfile: Dockerfile
+    container_name: e2e-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:3001
+      - NEXT_PUBLIC_EMBEDDING_SERVICE_URL=http://localhost:8001
+      - NODE_ENV=production
+    depends_on:
+      api:
+        condition: service_healthy
+      embedding-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - e2e-network
+
+networks:
+  e2e-network:
+    driver: bridge

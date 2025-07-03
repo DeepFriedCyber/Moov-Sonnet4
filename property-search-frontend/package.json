@@ -19,7 +19,12 @@
     "test:semantic": "vitest run src/services/__tests__/semanticSearchService.test.ts src/hooks/__tests__/useSemanticSearch.test.tsx",
     "test:components": "vitest run src/components/__tests__/",
     "test:integration": "vitest run --testNamePattern='integration'",
-    "test:unit": "vitest run --testNamePattern='(?!integration)'"
+    "test:unit": "vitest run --testNamePattern='(?!integration)'",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:headed": "playwright test --headed",
+    "setup:e2e": "node scripts/setup-e2e.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.0",
@@ -46,6 +51,7 @@
     "zod": "^3.25.67"
   },
   "devDependencies": {
+    "@playwright/test": "^1.40.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
@@ -60,6 +66,7 @@
     "eslint-config-next": "^14.0.0",
     "jsdom": "^26.1.0",
     "typescript": "^5.0.0",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "wait-on": "^7.2.0"
   }
 }

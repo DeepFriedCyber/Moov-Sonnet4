@@ -12,10 +12,10 @@ env:
 
 jobs:
   # ==========================================
-  # 🔍 Code Quality & Security
+  # � Setup & Install Dependencies
   # ==========================================
-  code-quality:
-    name: 🔍 Code Quality & Security
+  setup:
+    name: � Setup & Install Dependencies
     runs-on: ubuntu-latest
     steps:
       - name: 📦 Checkout Code
@@ -27,20 +27,49 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
 
-      - name: 📦 Install Dependencies
+      - name: 📦 Install All Monorepo Dependencies
         run: npm ci
 
+      - name: � Upload Dependencies Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: node-modules-and-code
+          path: |
+            .
+            !node_modules/.cache
+
+  # ==========================================
+  # 🔍 Code Quality & Security
+  # ==========================================
+  code-quality:
+    name: � Code Quality & Security
+    runs-on: ubuntu-latest
+    needs: setup # This job now depends on the setup job
+    steps:
+      - name: 📥 Download Source Code and Dependencies
+        uses: actions/download-artifact@v3
+        with:
+          name: node-modules-and-code
+          path: .
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # The 'npm ci' step is no longer needed here
+
       - name: 🔍 Lint Check
+        # The job will now fail if linting errors are found.
         run: npm run lint
-        continue-on-error: true
 
       - name: 🛡️ Security Audit
+        # The job will now fail if high-severity vulnerabilities are found.
         run: npm audit --audit-level=high
-        continue-on-error: true
 
       - name: 📝 Type Check
+        # The job will now fail if type checking errors are found.
         run: npm run type-check
-        continue-on-error: true
 
       - name: 🔒 Check for Hardcoded Secrets
         run: |
@@ -58,34 +87,33 @@ jobs:
   frontend-test:
     name: 🏗️ Frontend Tests
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./property-search-frontend
+    needs: setup # This job now depends on the setup job
 
     steps:
-      - name: 📦 Checkout Code
-        uses: actions/checkout@v4
+      - name: � Download Source Code and Dependencies
+        uses: actions/download-artifact@v3
+        with:
+          name: node-modules-and-code
+          path: .
 
       - name: 🟢 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-          cache-dependency-path: property-search-frontend/package-lock.json
 
-      - name: 📦 Install Dependencies
-        run: npm ci
+      # The 'npm ci' step is no longer needed here
 
       - name: 🔍 Lint Frontend
-        run: npm run lint
-        continue-on-error: true
+        # The job will now fail if linting errors are found.
+        # Use --workspace to target the specific package
+        run: npm run lint --workspace=property-search-frontend
 
       - name: 🧪 Run Tests
-        run: npm test -- --coverage --watchAll=false
-        continue-on-error: true
+        # The job will now fail if any test fails.
+        run: npm test --workspace=property-search-frontend -- --coverage --watchAll=false
 
       - name: 🏗️ Build Frontend
-        run: npm run build
+        run: npm run build --workspace=property-search-frontend
         env:
           NEXT_PUBLIC_API_URL: http://localhost:3001
           NEXT_PUBLIC_EMBEDDING_SERVICE_URL: http://localhost:8001
@@ -95,7 +123,6 @@ jobs:
         with:
           file: ./property-search-frontend/coverage/lcov.info
           flags: frontend
-        continue-on-error: true
 
   # ==========================================
   # 🔧 Backend API Build & Test
@@ -103,9 +130,7 @@ jobs:
   backend-test:
     name: 🔧 Backend API Tests
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./property-search-api
+    needs: setup # This job now depends on the setup job
 
     services:
       postgres:
@@ -133,41 +158,41 @@ jobs:
           - 6379:6379
 
     steps:
-      - name: 📦 Checkout Code
-        uses: actions/checkout@v4
+      - name: � Download Source Code and Dependencies
+        uses: actions/download-artifact@v3
+        with:
+          name: node-modules-and-code
+          path: .
 
       - name: 🟢 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-          cache-dependency-path: property-search-api/package-lock.json
 
-      - name: 📦 Install Dependencies
-        run: npm ci
+      # The 'npm ci' step is no longer needed here
 
       - name: 🔍 Lint Backend
-        run: npm run lint
-        continue-on-error: true
+        # The job will now fail if linting errors are found.
+        # Use --workspace to target the specific package
+        run: npm run lint --workspace=property-search-api
 
       - name: 🧪 Run Tests
-        run: npm test -- --coverage
+        # The job will now fail if any test fails.
+        run: npm test --workspace=property-search-api -- --coverage
         env:
           NODE_ENV: test
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
           REDIS_URL: redis://localhost:6379
           JWT_SECRET: test_secret_key
-        continue-on-error: true
 
       - name: 🏗️ Build Backend
-        run: npm run build
+        run: npm run build --workspace=property-search-api
 
       - name: 📊 Upload Coverage
         uses: codecov/codecov-action@v3
         with:
           file: ./property-search-api/coverage/lcov.info
           flags: backend
-        continue-on-error: true
 
   # ==========================================
   # 🤖 AI Service Build & Test
@@ -196,34 +221,121 @@ jobs:
           pip install pytest pytest-cov black isort flake8
 
       - name: 🔍 Format Check
+        # The job will now fail if code formatting issues are found.
         run: |
           black --check src/
           isort --check-only src/
-        continue-on-error: true
 
       - name: 🔍 Lint Check
+        # The job will now fail if linting errors are found.
         run: flake8 src/
-        continue-on-error: true
 
       - name: 🧪 Run Tests
+        # The job will now fail if any test fails.
         run: pytest --cov=src --cov-report=xml
-        continue-on-error: true
 
       - name: 📊 Upload Coverage
         uses: codecov/codecov-action@v3
         with:
           file: ./property-embedding-service/coverage.xml
           flags: ai-service
-        continue-on-error: true
 
   # ==========================================
-  # 🐳 Docker Build & Test
+  # 🧪 End-to-End Tests with Docker Compose
   # ==========================================
-  docker-build:
-    name: 🐳 Docker Build Test
+  e2e-tests:
+    name: 🧪 End-to-End Tests
     runs-on: ubuntu-latest
+    # This job should only run after the individual service tests pass
+    needs: [frontend-test, backend-test, ai-service-test]
+
+    steps:
+      - name: 📦 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 📝 Create .env file for Docker Compose
+        run: |
+          echo "POSTGRES_USER=moov" >> .env
+          echo "POSTGRES_PASSWORD=moov123" >> .env
+          echo "POSTGRES_DB=moov_db" >> .env
+          echo "JWT_SECRET=a_test_secret_for_ci_that_is_long_enough" >> .env
+          echo "FRONTEND_URL=http://localhost:3000" >> .env
+
+      - name: 🚀 Start Full Application Stack
+        run: docker-compose -f docker-compose.e2e.yml up -d --build
+
+      - name: ⏳ Wait for Frontend to be Ready
+        # This step is crucial. It waits until the frontend server is responding before running tests.
+        run: npx wait-on http://localhost:3000 --timeout 180000 # 3 minute timeout
+
+      - name: ⏳ Wait for API to be Ready
+        run: npx wait-on http://localhost:3001/health --timeout 60000
+
+      - name: ⏳ Wait for AI Service to be Ready
+        run: npx wait-on http://localhost:8001/health --timeout 60000
+
+      - name: 🟢 Setup Node.js for Playwright
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: 📦 Install Frontend Dependencies
+        run: npm ci --workspace=property-search-frontend
+
+      - name: 🌐 Install Playwright Browsers
+        run: npm exec --workspace=property-search-frontend playwright install --with-deps
+
+      - name: 🧪 Run Playwright E2E Tests
+        run: npm run test:e2e --workspace=property-search-frontend
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+
+      - name: 📊 Upload E2E Test Report
+        if: always() # Always run this step to get reports even on failure
+        uses: actions/upload-artifact@v3
+        with:
+          name: playwright-report
+          path: property-search-frontend/playwright-report/
+          retention-days: 7
+
+      - name: 📊 Upload E2E Test Results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: e2e-test-results
+          path: |
+            property-search-frontend/test-results/
+            property-search-frontend/playwright-report/
+          retention-days: 7
+
+      - name: 🐳 Show Docker Logs (on failure)
+        if: failure()
+        run: |
+          echo "=== Frontend Logs ==="
+          docker logs e2e-frontend
+          echo "=== API Logs ==="
+          docker logs e2e-api
+          echo "=== Embedding Service Logs ==="
+          docker logs e2e-embedding
+          echo "=== PostgreSQL Logs ==="
+          docker logs e2e-postgres
+          echo "=== Redis Logs ==="
+          docker logs e2e-redis
+
+      - name: 🛑 Stop Application Stack
+        if: always() # Always run this step to clean up the runner
+        run: docker-compose -f docker-compose.e2e.yml down
+
+  # ==========================================
+  # �🐳 Build & Push Production Images
+  # ==========================================
+  build-and-push-production:
+    name: 🐳 Build & Push Production Images
+    runs-on: ubuntu-latest
+    # This job only runs on a push to the main branch
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [code-quality] # Ensure security checks pass first
+    # It depends on all test jobs passing successfully
+    needs: [setup, frontend-test, backend-test, ai-service-test, e2e-tests]
 
     steps:
       - name: 📦 Checkout Code
@@ -232,19 +344,35 @@ jobs:
       - name: 🐳 Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: 🔑 Login to Docker Hub
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - name: 🔑 Login to Docker Hub (or your registry)
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-        continue-on-error: true
 
-      - name: 🏗️ Build and Test Docker Images
-        run: |
-          docker-compose -f docker-compose.yml build
-          docker-compose -f docker-compose.yml config
-        continue-on-error: true
+      - name: 🏗️ Build and Push API Image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./property-search-api
+          file: ./property-search-api/Dockerfile.prod
+          push: true
+          tags: your-docker-repo/moov-api:latest, your-docker-repo/moov-api:${{ github.sha }}
+
+      - name: 🏗️ Build and Push Frontend Image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./property-search-frontend
+          file: ./property-search-frontend/Dockerfile.prod
+          push: true
+          tags: your-docker-repo/moov-frontend:latest, your-docker-repo/moov-frontend:${{ github.sha }}
+
+      - name: 🏗️ Build and Push AI Service Image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./property-embedding-service
+          file: ./property-embedding-service/Dockerfile.prod
+          push: true
+          tags: your-docker-repo/moov-embedding:latest, your-docker-repo/moov-embedding:${{ github.sha }}
 
   # ==========================================
   # 📊 Performance & Lighthouse
@@ -253,32 +381,30 @@ jobs:
     name: 📊 Lighthouse Performance
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [frontend-test]
+    needs: [setup, frontend-test]
 
     steps:
-      - name: 📦 Checkout Code
-        uses: actions/checkout@v4
+      - name: � Download Source Code and Dependencies
+        uses: actions/download-artifact@v3
+        with:
+          name: node-modules-and-code
+          path: .
 
       - name: 🟢 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
 
-      - name: 📦 Install Dependencies
-        working-directory: ./property-search-frontend
-        run: npm ci
+      # The 'npm ci' step is no longer needed here
 
       - name: 🏗️ Build Frontend
-        working-directory: ./property-search-frontend
-        run: npm run build
+        run: npm run build --workspace=property-search-frontend
         env:
           NEXT_PUBLIC_API_URL: http://localhost:3001
           NEXT_PUBLIC_EMBEDDING_SERVICE_URL: http://localhost:8001
 
       - name: 🚀 Start Frontend
-        working-directory: ./property-search-frontend
-        run: npm start &
+        run: npm start --workspace=property-search-frontend &
         env:
           PORT: 3000
 
@@ -301,7 +427,7 @@ jobs:
     name: 🚀 Deploy to Staging
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
-    needs: [frontend-test, backend-test, ai-service-test]
+    needs: [frontend-test, backend-test, ai-service-test, e2e-tests]
     environment: staging
 
     steps:
@@ -321,7 +447,8 @@ jobs:
     name: 🌟 Deploy to Production
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [frontend-test, backend-test, ai-service-test, docker-build]
+    needs:
+      [frontend-test, backend-test, ai-service-test, e2e-tests, build-and-push-production]
     environment: production
 
     steps:
