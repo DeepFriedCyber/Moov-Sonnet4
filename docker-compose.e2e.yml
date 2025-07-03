@@ -91,7 +91,8 @@ services:
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:3001
       - NEXT_PUBLIC_EMBEDDING_SERVICE_URL=http://localhost:8001
-      - NODE_ENV=production
+      - NODE_ENV=development
+      - NEXT_TELEMETRY_DISABLED=1
     depends_on:
       api:
         condition: service_healthy

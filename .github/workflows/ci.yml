@@ -264,15 +264,39 @@ jobs:
       - name: 🚀 Start Full Application Stack
         run: docker-compose -f docker-compose.e2e.yml up -d --build
 
+      - name: 📊 Check Container Status
+        run: |
+          echo "=== Container Status ==="
+          docker-compose -f docker-compose.e2e.yml ps
+          echo ""
+          echo "=== Container Health ==="
+          for container in e2e-postgres e2e-redis e2e-api e2e-embedding e2e-frontend; do
+            echo "--- $container ---"
+            docker inspect --format='{{.State.Health.Status}}' $container 2>/dev/null || echo 'No health check'
+          done
+
+      - name: ⏳ Wait for Database to be Ready
+        run: npx wait-on tcp:localhost:5432 --timeout 60000
+
+      - name: ⏳ Wait for Redis to be Ready
+        run: npx wait-on tcp:localhost:6379 --timeout 60000
+
+      - name: ⏳ Wait for API to be Ready
+        run: npx wait-on http://localhost:3001/health --timeout 120000
+
+      - name: ⏳ Wait for AI Service to be Ready
+        run: npx wait-on http://localhost:8001/health --timeout 120000
+
       - name: ⏳ Wait for Frontend to be Ready
         # This step is crucial. It waits until the frontend server is responding before running tests.
         run: npx wait-on http://localhost:3000 --timeout 180000 # 3 minute timeout
 
-      - name: ⏳ Wait for API to be Ready
-        run: npx wait-on http://localhost:3001/health --timeout 60000
-
-      - name: ⏳ Wait for AI Service to be Ready
-        run: npx wait-on http://localhost:8001/health --timeout 60000
+      - name: 🔍 Verify All Services
+        run: |
+          echo "=== Final Service Check ==="
+          curl -f http://localhost:3001/health || echo "API health check failed"
+          curl -f http://localhost:8001/health || echo "AI service health check failed"
+          curl -f http://localhost:3000 || echo "Frontend health check failed"
 
       - name: 🟢 Setup Node.js for Playwright
         uses: actions/setup-node@v4
@@ -311,16 +335,29 @@ jobs:
       - name: 🐳 Show Docker Logs (on failure)
         if: failure()
         run: |
+          echo "=== Container Status ==="
+          docker-compose -f docker-compose.e2e.yml ps
+          echo ""
           echo "=== Frontend Logs ==="
-          docker logs e2e-frontend
+          docker logs e2e-frontend --tail 50 2>&1 || echo "No frontend logs"
+          echo ""
           echo "=== API Logs ==="
-          docker logs e2e-api
+          docker logs e2e-api --tail 50 2>&1 || echo "No API logs"
+          echo ""
           echo "=== Embedding Service Logs ==="
-          docker logs e2e-embedding
+          docker logs e2e-embedding --tail 50 2>&1 || echo "No embedding service logs"
+          echo ""
           echo "=== PostgreSQL Logs ==="
-          docker logs e2e-postgres
+          docker logs e2e-postgres --tail 30 2>&1 || echo "No PostgreSQL logs"
+          echo ""
           echo "=== Redis Logs ==="
-          docker logs e2e-redis
+          docker logs e2e-redis --tail 30 2>&1 || echo "No Redis logs"
+          echo ""
+          echo "=== Network Information ==="
+          docker network ls
+          echo ""
+          echo "=== Port Information ==="
+          netstat -tuln | grep -E ':(3000|3001|5432|6379|8001) ' || echo "No matching ports found"
 
       - name: 🛑 Stop Application Stack
         if: always() # Always run this step to clean up the runner
@@ -448,7 +485,13 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs:
-      [frontend-test, backend-test, ai-service-test, e2e-tests, build-and-push-production]
+      [
+        frontend-test,
+        backend-test,
+        ai-service-test,
+        e2e-tests,
+        build-and-push-production,
+      ]
     environment: production
 
     steps:

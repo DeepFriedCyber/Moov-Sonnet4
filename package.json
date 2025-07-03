@@ -19,6 +19,8 @@
     "test:e2e": "npm run test:frontend:e2e",
     "test:e2e:docker": "bash scripts/test-e2e-docker.sh",
     "test:e2e:docker:windows": "powershell -ExecutionPolicy Bypass -File scripts/test-e2e-docker.ps1",
+    "debug:e2e:docker": "bash scripts/debug-e2e-docker.sh",
+    "debug:e2e:docker:windows": "powershell -ExecutionPolicy Bypass -File scripts/debug-e2e-docker.ps1",
     "test:coverage": "npm run test:frontend:coverage && npm run test:api:coverage",
     "test:watch": "concurrently \"npm run test:frontend:watch\" \"npm run test:api:watch\"",
     "test:frontend": "cd property-search-frontend && npm test -- --watchAll=false",
