@@ -10,6 +10,7 @@ const logLevels = {
 };
 
 const level = () => {
+    const env = getEnv();
     const isDevelopment = env.NODE_ENV === 'development';
     return isDevelopment ? 'debug' : 'warn';
 };
@@ -113,3 +114,36 @@ export const logWarn = (message: string, meta: any = {}): void => {
 export const logDebug = (message: string, meta: any = {}): void => {
     logger.debug(message, meta);
 };
+
+// Logger class for contextual logging
+export class Logger {
+    private context: string;
+
+    constructor(context: string) {
+        this.context = context;
+    }
+
+    private formatMessage(message: string): string {
+        return `[${this.context}] ${message}`;
+    }
+
+    debug(message: string, meta: any = {}): void {
+        logger.debug(this.formatMessage(message), meta);
+    }
+
+    info(message: string, meta: any = {}): void {
+        logger.info(this.formatMessage(message), meta);
+    }
+
+    warn(message: string, meta: any = {}): void {
+        logger.warn(this.formatMessage(message), meta);
+    }
+
+    error(message: string, meta: any = {}): void {
+        logger.error(this.formatMessage(message), meta);
+    }
+
+    http(message: string, meta: any = {}): void {
+        logger.http(this.formatMessage(message), meta);
+    }
+}
