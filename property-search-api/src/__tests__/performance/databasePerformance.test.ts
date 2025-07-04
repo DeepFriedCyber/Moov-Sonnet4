@@ -14,8 +14,12 @@ describe('Database Performance Testing', () => {
         // Set up test environment with DatabaseService
         database = new DatabaseService({
             connectionString: process.env.TEST_DATABASE_URL!,
-            minConnections: 5,
-            maxConnections: 20
+            maxConnections: 20,
+            idleTimeoutMillis: 30000,
+            connectionTimeoutMillis: 5000,
+            enableSSL: false,
+            retryAttempts: 3,
+            retryDelay: 1000
         });
         await database.initialize();
 

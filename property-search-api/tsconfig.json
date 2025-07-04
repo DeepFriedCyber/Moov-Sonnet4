@@ -24,6 +24,10 @@
         "noImplicitReturns": true,
         "noFallthroughCasesInSwitch": true,
         "moduleResolution": "node",
+        "baseUrl": ".",
+        "paths": {
+            "@/*": ["src/*"]
+        },
         "allowJs": true,
         "experimentalDecorators": true,
         "emitDecoratorMetadata": true,

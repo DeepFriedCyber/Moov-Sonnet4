@@ -8,8 +8,12 @@ describe('Index Creation and Management', () => {
     beforeAll(async () => {
         database = new DatabaseService({
             connectionString: process.env.TEST_DATABASE_URL!,
-            minConnections: 1,
-            maxConnections: 5
+            maxConnections: 5,
+            idleTimeoutMillis: 30000,
+            connectionTimeoutMillis: 5000,
+            enableSSL: false,
+            retryAttempts: 3,
+            retryDelay: 1000
         });
         await database.initialize();
         indexManager = new IndexManager(database);

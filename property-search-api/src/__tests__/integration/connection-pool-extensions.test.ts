@@ -53,6 +53,8 @@ describe('Connection Pool Extensions Integration', () => {
         idleTimeoutMillis: 10000,
         connectionTimeoutMillis: 3000,
         enableSSL: false,
+        retryAttempts: 3,
+        retryDelay: 1000,
         autoScaling: {
             enabled: true,
             minConnections: 2,

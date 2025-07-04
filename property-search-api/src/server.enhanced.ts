@@ -43,6 +43,8 @@ const poolManager = new PropertyPoolManager({
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 5000,
     enableSSL: env.NODE_ENV === 'production',
+    retryAttempts: 3,
+    retryDelay: 1000,
     autoScaling: {
         enabled: true,
         minConnections: 5,
